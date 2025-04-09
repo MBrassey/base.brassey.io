@@ -1,0 +1,138 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 200 38% 45%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 200 38% 45%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 200 38% 45%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 200 38% 45%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 200 38% 45%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 200 38% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Enhanced styling for the IdentityCard component */
+.identity-card-wrapper {
+  --onchainkit-card-padding: 0;
+  --onchainkit-card-border: none;
+  --onchainkit-card-shadow: none;
+  --onchainkit-card-radius: 0;
+}
+
+.identity-card-wrapper :global(.onchainkit-identity-card) {
+  padding: 0;
+  border: none;
+  box-shadow: none;
+}
+
+.identity-card-wrapper :global(.onchainkit-identity-card-avatar) {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  overflow: hidden;
+  transition: transform 0.2s ease-in-out;
+}
+
+.identity-card-wrapper :global(.onchainkit-identity-card-avatar):hover {
+  transform: scale(1.05);
+  cursor: pointer;
+}
+
+.identity-card-wrapper :global(.onchainkit-identity-card-name) {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0.75rem 0 0.25rem;
+  transition: color 0.2s ease-in-out;
+}
+
+.identity-card-wrapper :global(.onchainkit-identity-card-name):hover {
+  color: hsl(var(--primary));
+  cursor: pointer;
+}
+
+.identity-card-wrapper :global(.onchainkit-identity-card-address) {
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+  transition: color 0.2s ease-in-out;
+}
+
+.identity-card-wrapper :global(.onchainkit-identity-card-address):hover {
+  color: hsl(var(--primary));
+  cursor: pointer;
+}
+
+/* Styling for the Socials component */
+.socials-wrapper {
+  margin-top: 0.5rem;
+}
+
+.socials-wrapper :global(.onchainkit-socials) {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.socials-wrapper :global(.onchainkit-social-link) {
+  color: hsl(var(--muted-foreground));
+  transition: color 0.2s ease-in-out;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.socials-wrapper :global(.onchainkit-social-link):hover {
+  color: hsl(var(--primary));
+}
+
+.socials-wrapper :global(.onchainkit-social-link-icon) {
+  width: 1.25rem;
+  height: 1.25rem;
+}
