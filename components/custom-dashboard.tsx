@@ -11,6 +11,7 @@ import { useAuth } from "@/context/auth-context"
 import { DashboardHeader } from "./dashboard-header"
 import { ErrorBoundary } from "./error-boundary"
 import { WalletCard } from "./wallet-card"
+import { NFTGallery } from "./nft-gallery"
 
 export function CustomDashboard() {
   const [isMounted, setIsMounted] = useState(true) // Set to true by default for client components
@@ -66,10 +67,6 @@ export function CustomDashboard() {
           <div className="flex items-center gap-4">
             <h1 className="flex-1 font-semibold text-lg md:text-2xl">Dashboard</h1>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="h-8">
-                <Filter className="mr-2 h-3.5 w-3.5" />
-                Filter
-              </Button>
               <Button size="sm" className="h-8">
                 <Plus className="mr-2 h-3.5 w-3.5" />
                 Add Asset
@@ -77,9 +74,9 @@ export function CustomDashboard() {
             </div>
           </div>
 
-          {/* Base Wallet Card */}
+          {/* Base Wallet Card and NFT Gallery */}
           {address && (
-            <div className="w-full">
+            <div className="w-full space-y-4">
               <ErrorBoundary
                 fallback={
                   <div className="p-4 border rounded-lg bg-background">
@@ -90,6 +87,18 @@ export function CustomDashboard() {
                 }
               >
                 <WalletCard address={address} chain={base} />
+              </ErrorBoundary>
+              
+              <ErrorBoundary
+                fallback={
+                  <div className="p-4 border rounded-lg bg-background">
+                    <p className="text-center text-muted-foreground">
+                      Unable to load NFTs. Please try again later.
+                    </p>
+                  </div>
+                }
+              >
+                <NFTGallery />
               </ErrorBoundary>
             </div>
           )}

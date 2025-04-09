@@ -1,66 +1,59 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAccount } from "wagmi"
-
-interface NFT {
-  contract: {
-    address: string
-  }
-  id: {
-    tokenId: string
-  }
-  title: string
-  description: string
-  media: {
-    gateway: string
-  }
-}
+import { Alchemy, Network, OwnedNft } from "alchemy-sdk"
 
 export function NFTGallery() {
   const { address } = useAccount()
-  const [nfts, setNfts] = useState<NFT[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [nfts, setNfts] = useState<OwnedNft[]>([])
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchNFTs = async () => {
-      if (!address) return
+      if (!address) {
+        setLoading(false)
+        return
+      }
 
       try {
-        setIsLoading(true)
-        const response = await fetch(`/api/nfts?address=${address}`)
-        if (!response.ok) throw new Error('Failed to fetch NFTs')
-        const data = await response.json()
-        setNfts(data.nfts || [])
+        const config = {
+          apiKey: process.env.NEXT_PUBLIC_ALCHEMY_API_KEY,
+          network: Network.BASE_MAINNET,
+        }
+        const alchemy = new Alchemy(config)
+
+        const response = await alchemy.nft.getNftsForOwner(address)
+        setNfts(response.ownedNfts)
+        setError(null)
       } catch (err) {
-        console.error('Error fetching NFTs:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load NFTs')
+        console.error("Error fetching NFTs:", err)
+        setError("Failed to load NFTs")
       } finally {
-        setIsLoading(false)
+        setLoading(false)
       }
     }
 
     fetchNFTs()
   }, [address])
 
-  if (!address) return null
+  if (!address) {
+    return null
+  }
 
-  if (isLoading) {
+  if (loading) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Your NFTs</CardTitle>
-          <CardDescription>Loading your NFT collection...</CardDescription>
+          <CardTitle>NFT Gallery</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="aspect-square">
-                <Skeleton className="w-full h-full rounded-lg" />
-              </div>
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-[200px] w-full rounded-lg" />
             ))}
           </div>
         </CardContent>
@@ -72,8 +65,7 @@ export function NFTGallery() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Your NFTs</CardTitle>
-          <CardDescription>Error loading NFTs</CardDescription>
+          <CardTitle>NFT Gallery</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-red-500">{error}</p>
@@ -85,29 +77,57 @@ export function NFTGallery() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Your NFTs</CardTitle>
-        <CardDescription>Your Base NFT collection</CardDescription>
+        <CardTitle>NFT Gallery</CardTitle>
       </CardHeader>
       <CardContent>
         {nfts.length === 0 ? (
-          <p className="text-center text-muted-foreground">No NFTs found in your collection</p>
+          <p className="text-muted-foreground">No NFTs found</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {nfts.map((nft) => (
-              <div key={`${nft.contract.address}-${nft.id.tokenId}`} className="group relative aspect-square">
-                <img
-                  src={nft.media.gateway}
-                  alt={nft.title}
-                  className="w-full h-full object-cover rounded-lg transition-transform group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-                  <div className="text-white text-center p-4">
-                    <h3 className="font-medium">{nft.title}</h3>
-                    <p className="text-sm text-gray-300">{nft.description}</p>
+            {nfts.map((nft) => {
+              const isSvg = nft.image?.originalUrl?.endsWith('.svg') || nft.image?.cachedUrl?.endsWith('.svg')
+              const imageUrl = nft.image?.cachedUrl || nft.image?.originalUrl || "/placeholder.png"
+              
+              return (
+                <div
+                  key={`${nft.contract.address}-${nft.tokenId}`}
+                  className="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
+                >
+                  <div className="w-full h-48 relative">
+                    {isSvg ? (
+                      <iframe
+                        src={imageUrl}
+                        className="w-full h-full border-0"
+                        sandbox="allow-scripts"
+                        title={nft.name || "NFT"}
+                      />
+                    ) : (
+                      <img
+                        src={imageUrl}
+                        alt={nft.name || "Untitled"}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = "/placeholder.png"
+                        }}
+                      />
+                    )}
+                  </div>
+                  <div className="p-4">
+                    <h3 className="font-semibold truncate">
+                      {nft.name || "Untitled"}
+                    </h3>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {nft.description || "No description"}
+                    </p>
+                    {nft.contract.name && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {nft.contract.name}
+                      </p>
+                    )}
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </CardContent>
