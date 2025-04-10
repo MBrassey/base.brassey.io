@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { Filter, LayoutDashboard, Plus, User, LogOut } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Filter, LayoutDashboard, User, LogOut } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { base } from "viem/chains"
@@ -12,11 +12,54 @@ import { DashboardHeader } from "./dashboard-header"
 import { ErrorBoundary } from "./error-boundary"
 import { WalletCard } from "./wallet-card"
 import { NFTGallery } from "./nft-gallery"
+import Image from "next/image"
 
 export function CustomDashboard() {
   const [isMounted, setIsMounted] = useState(true) // Set to true by default for client components
   const { address, logout } = useAuth()
   const router = useRouter()
+  const [blockHeight, setBlockHeight] = useState<number | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchBlockHeight = async () => {
+      try {
+        setLoading(true);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        
+        const response = await fetch('/api/block-height', {
+          signal: controller.signal,
+          cache: 'no-store'
+        });
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        if (data && typeof data.blockNumber === 'number') {
+          console.log('Block height fetched:', data.blockNumber);
+          setBlockHeight(data.blockNumber);
+        } else {
+          console.error('Invalid block number in response:', data);
+          throw new Error('Invalid block number response');
+        }
+      } catch (error) {
+        console.error('Error fetching block height:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Initial fetch
+    fetchBlockHeight();
+    
+    // Refresh block height every 30 seconds
+    const interval = setInterval(fetchBlockHeight, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleLogout = () => {
     logout()
@@ -67,9 +110,14 @@ export function CustomDashboard() {
           <div className="flex items-center gap-4">
             <h1 className="flex-1 font-semibold text-lg md:text-2xl">Dashboard</h1>
             <div className="flex items-center gap-2">
-              <Button size="sm" className="h-8">
-                <Plus className="mr-2 h-3.5 w-3.5" />
-                Add Asset
+              <Button size="sm" className="h-8 bg-[#0052FF] hover:bg-[#0039b3]">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2500 2500" className="mr-2 h-3.5 w-3.5 text-white">
+                  <path 
+                    fill="currentColor" 
+                    d="M1247.8,2500c691.6,0,1252.2-559.6,1252.2-1250C2500,559.6,1939.4,0,1247.8,0C591.7,0,53.5,503.8,0,1144.9h1655.1v210.2H0C53.5,1996.2,591.7,2500,1247.8,2500z"
+                  />
+                </svg>
+                {loading ? 'Fetching Block...' : blockHeight ? `Block: ${blockHeight.toLocaleString()}` : 'Connecting...'}
               </Button>
             </div>
           </div>
