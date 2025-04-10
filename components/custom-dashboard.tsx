@@ -12,6 +12,7 @@ import { DashboardHeader } from "./dashboard-header"
 import { ErrorBoundary } from "./error-boundary"
 import { WalletCard } from "./wallet-card"
 import { NFTGallery } from "./nft-gallery"
+import { TokenGallery } from "./token-gallery"
 import { Spinner } from "@/components/ui/spinner"
 import Image from "next/image"
 
@@ -145,6 +146,18 @@ export function CustomDashboard() {
                 }
               >
                 <WalletCard address={address} chain={base} />
+              </ErrorBoundary>
+              
+              <ErrorBoundary
+                fallback={
+                  <div className="p-4 border rounded-lg bg-background">
+                    <p className="text-center text-muted-foreground">
+                      Unable to load tokens. Please try again later.
+                    </p>
+                  </div>
+                }
+              >
+                <TokenGallery />
               </ErrorBoundary>
               
               <ErrorBoundary

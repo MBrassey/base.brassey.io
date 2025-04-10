@@ -74,19 +74,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     try {
+      // First disconnect from wallet if connected
       disconnect()
     } catch (error) {
       console.error("Error during disconnect:", error)
     } finally {
-      // Continue with local state cleanup even if disconnect fails
+      // Clean up local state - ensure this always runs
       setIsAuthenticated(false)
       setAddress(null)
       setBasename(null)
       localStorage.removeItem("userAddress")
       
-      // Force reload to ensure clean state if needed
-      if (typeof window !== "undefined") {
-        window.location.href = "/"
+      // Force a window reload to ensure all state is properly cleared
+      // This is important for wallet connections to reset properly
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
       }
     }
   }

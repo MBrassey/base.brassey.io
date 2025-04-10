@@ -16,8 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning className="dark">
       <head>
-        <link rel="icon" href="/base-logo.svg" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/base-logo.svg" />
+        {/* These head elements are managed by Next.js metadata now */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
