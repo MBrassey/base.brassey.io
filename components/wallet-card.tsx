@@ -95,7 +95,7 @@ export function WalletCard({ address, chain, className = "" }: WalletCardProps) 
           <Wallet className="h-5 w-5" />
           Your {chain?.name || "Base"} Wallet
         </CardTitle>
-        <CardDescription>Manage your wallet and assets</CardDescription>
+        <CardDescription>View your wallet and assets</CardDescription>
       </CardHeader>
       <CardContent className="pt-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
