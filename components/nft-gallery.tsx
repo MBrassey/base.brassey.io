@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAccount } from "wagmi"
-import { Alchemy, Network, OwnedNft } from "alchemy-sdk"
+import type { OwnedNft } from "alchemy-sdk"
 
 // Contract addresses for special handling
 const CHART_CONTRACT_ADDRESS = "0xb679683E562b183161d5f3F93c6fA1d3115c4D30"
@@ -24,18 +24,26 @@ export function NFTGallery() {
       }
 
       try {
-        const config = {
-          apiKey: process.env.NEXT_PUBLIC_ALCHEMY_API_KEY,
-          network: Network.BASE_MAINNET,
+        // Use the server-side API instead of client-side Alchemy SDK
+        const response = await fetch(`/api/nfts?address=${address}`, {
+          cache: 'no-store'
+        })
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`)
         }
-        const alchemy = new Alchemy(config)
-
-        const response = await alchemy.nft.getNftsForOwner(address)
-        if (response.ownedNfts.length > 0) {
-          console.log("First NFT metadata:", response.ownedNfts[0])
+        
+        const data = await response.json()
+        
+        if (data.nfts && Array.isArray(data.nfts)) {
+          if (data.nfts.length > 0) {
+            console.log("First NFT metadata:", data.nfts[0])
+          }
+          setNfts(data.nfts)
+          setError(null)
+        } else {
+          throw new Error("Invalid NFT data format received")
         }
-        setNfts(response.ownedNfts)
-        setError(null)
       } catch (err) {
         console.error("Error fetching NFTs:", err)
         setError("Failed to load NFTs")

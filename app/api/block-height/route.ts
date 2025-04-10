@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    // Check if API key exists
-    const apiKey = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY;
+    // Check if API key exists - use private server-side env var
+    // This works in both local and deployed environments
+    const apiKey = process.env.ALCHEMY_API_KEY;
     if (!apiKey) {
       console.error("Missing Alchemy API key");
       return NextResponse.json(

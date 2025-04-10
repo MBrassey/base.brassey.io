@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useEffect, useState } from "react"
 import { ErrorBoundary } from "./error-boundary"
 import { BaseAvatar, BaseName } from "./onchain-components"
+import { useCdpProjectId } from "@/hooks/use-cdp-project-id"
 
 interface WalletCardProps {
   address: string
@@ -20,8 +21,11 @@ export function WalletCard({ address, chain, className = "" }: WalletCardProps) 
   // Base explorer URL
   const baseExplorerUrl = "https://basescan.org"
 
-  // Project ID for Coinbase Developer Platform
-  const projectId = process.env.NEXT_PUBLIC_CDP_PROJECT_ID || "0ed75430-5a19-4e01-b051-f4ab0d5cbe0a"
+  // Get the Coinbase Developer Platform project ID
+  const { projectId, isLoading: isLoadingProjectId } = useCdpProjectId()
+  
+  // Fallback project ID in case the API fails
+  const fallbackProjectId = "0ed75430-5a19-4e01-b051-f4ab0d5cbe0a"
 
   // State to track if component is mounted (client-side)
   const [isMounted, setIsMounted] = useState(false)
@@ -30,7 +34,6 @@ export function WalletCard({ address, chain, className = "" }: WalletCardProps) 
   const { data: balanceData, isLoading: isBalanceLoading } = useBalance({
     address: address as `0x${string}`,
     chainId: chain?.id,
-    enabled: !!address && !!chain?.id,
   })
 
   // Format address for display
@@ -44,9 +47,11 @@ export function WalletCard({ address, chain, className = "" }: WalletCardProps) 
     // Base URL for Coinbase onramp
     const baseUrl = "https://pay.coinbase.com/buy/select-asset"
 
-    // Parameters for the URL
+    // Parameters for the URL - use the fetched project ID or fallback
+    const cdpProjectId = projectId || fallbackProjectId
+    
     const params = new URLSearchParams({
-      appId: projectId,
+      appId: cdpProjectId,
       destinationWallets: JSON.stringify([
         {
           address,

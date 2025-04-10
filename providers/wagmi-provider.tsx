@@ -5,7 +5,7 @@ import { createConfig, http } from "wagmi"
 import { base, mainnet } from "wagmi/chains"
 import { WagmiProvider } from "wagmi"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { metaMask } from "wagmi/connectors"
+import { metaMask, coinbaseWallet, walletConnect } from "wagmi/connectors"
 
 // Create wagmi config
 const config = createConfig({
@@ -15,7 +15,21 @@ const config = createConfig({
     [base.id]: http(),
   },
   connectors: [
-    metaMask(), // Prioritize MetaMask
+    metaMask(),
+    coinbaseWallet({
+      appName: "base.brassey.io",
+      headlessMode: false,
+    }),
+    walletConnect({
+      projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || process.env.WALLETCONNECT_PROJECT_ID || '891aaf3e0e3c9c7ca427dfe291ac3ec4',
+      showQrModal: true,
+      metadata: {
+        name: "base.brassey.io",
+        description: "Base Name Service",
+        url: "https://base.brassey.io",
+        icons: ["https://base.brassey.io/base-logo.svg"]
+      }
+    }),
   ],
 })
 
