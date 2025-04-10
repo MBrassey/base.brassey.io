@@ -6,36 +6,29 @@ A Web3 Dashboard for the Base blockchain with wallet connection, on-chain identi
 
 ```mermaid
 graph TD
-    subgraph "Client Application"
-        A[Next.js App] --> B[WalletConnectionProvider]
-        B --> C[AuthProvider]
-        C --> D[User Interface Components]
-        D --> E[OnchainKit Components]
-        D --> F[Wallet Connection Modal]
-        D --> G[NFT Gallery]
-        D --> H[Wallet Card]
+    subgraph "Frontend"
+        A[Next.js App] --> B[Wallet Connection]
+        A --> C[UI Components]
+        C --> D[NFT Gallery]
+        C --> E[Token Gallery]
+        C --> F[Profile/Dashboard]
     end
     
-    subgraph "Blockchain Connectivity"
-        F --> I[Wagmi Hooks]
-        I --> J[MetaMask Connector]
-        I --> K[Coinbase Wallet Connector]
-        I --> L[WalletConnect Connector]
+    subgraph "Wallet Integration"
+        B --> G[MetaMask]
+        B --> H[Coinbase Wallet]
+        B --> I[WalletConnect]
+        B --> J[Brave Wallet]
     end
     
-    subgraph "Backend Services"
-        A --> M[API Routes]
-        M --> N[Alchemy API]
-        M --> O[WalletConnect Config]
-        M --> P[Coinbase Developer Platform]
+    subgraph "Backend"
+        A --> K[API Routes]
+        K --> L[Alchemy SDK]
     end
     
-    subgraph "Base Blockchain Integration"
-        E --> Q[OnchainKit Identity]
-        H --> R[Base Chain data]
-        N --> S[Base Mainnet]
-        Q --> S
-        R --> S
+    subgraph "Blockchain"
+        L --> M[Base Mainnet]
+        G & H & I & J --> M
     end
 ```
 
@@ -78,16 +71,17 @@ Create a `.env.local` file in the root of the project with the following variabl
 ```
 # WalletConnect Project ID 
 # Get one at https://cloud.walletconnect.com/
-WALLETCONNECT_PROJECT_ID=your_project_id_here
 NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id_here
 
 # Alchemy API Key for Base
 # Get one at https://dashboard.alchemy.com/
 ALCHEMY_API_KEY=your_alchemy_api_key_here
+```
 
-# Coinbase Developer Platform Project ID
-# Get one at https://developers.coinbase.com/
-CDP_PROJECT_ID=your_cdp_project_id_here
+### Optional Environment Variables
+```
+# For enhanced development logging
+DEBUG=true
 ```
 
 ## Feature Overview
@@ -155,7 +149,5 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 ## Deployment
 
 The application is deployed on Vercel. When deploying, add these environment variables as Vercel secrets:
-- `WALLETCONNECT_PROJECT_ID`
 - `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`
-- `ALCHEMY_API_KEY`
-- `CDP_PROJECT_ID` 
+- `ALCHEMY_API_KEY` 
