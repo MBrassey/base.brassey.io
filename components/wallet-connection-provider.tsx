@@ -34,6 +34,7 @@ export function WalletConnectionProvider({ children }: { children: React.ReactNo
           coinbaseWallet({
             appName: "base.brassey.io",
             headlessMode: false,
+            appLogoUrl: "https://base.brassey.io/base-logo.svg",
           }),
           walletConnect({
             projectId,
