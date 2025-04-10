@@ -5,6 +5,7 @@ A Web3 Dashboard for the Base blockchain with wallet connection, on-chain identi
 ## Architecture Overview
 
 ```mermaid
+%%{init: {'theme':'dark', 'flowchart': {'useMaxWidth':false, 'htmlLabels':true, 'curve':'linear'}, 'securityLevel': 'loose', 'displayMode': true, 'showSequenceNumbers': false }}%%
 flowchart TD
     A[Next.js App]
     A --> B[Frontend]
