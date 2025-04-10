@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAccount } from "wagmi"
 import type { OwnedNft } from "alchemy-sdk"
+import { Spinner } from "@/components/ui/spinner"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 // Contract addresses for special handling
 const CHART_CONTRACT_ADDRESS = "0xb679683E562b183161d5f3F93c6fA1d3115c4D30"
@@ -66,10 +68,9 @@ export function NFTGallery() {
           <CardTitle>NFT Gallery</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {[...Array(4)].map((_, i) => (
-              <Skeleton key={i} className="h-[200px] w-full rounded-lg" />
-            ))}
+          <div className="flex flex-col items-center justify-center p-8">
+            <Spinner className="h-8 w-8 mb-4" />
+            <p className="text-muted-foreground">Loading NFTs...</p>
           </div>
         </CardContent>
       </Card>

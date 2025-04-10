@@ -36,6 +36,7 @@ export function WalletConnectionModal() {
     "coinbaseWallet": "Coinbase Wallet",
     "walletConnect": "WalletConnect",
     "phantom": "Phantom",
+    "brave": "Brave", 
   }
 
   // Reset error when modal is closed
@@ -148,7 +149,11 @@ export function WalletConnectionModal() {
                 <WalletIcon connectorId={connector.id} name={connector.name} />
               </div>
               <div className="flex flex-col items-start">
-                <span>{walletNames[connector.id] || connector.name}</span>
+                <span>
+                  {connector.id === 'injected' && connector.name.toLowerCase().includes('brave') 
+                    ? 'Brave' 
+                    : walletNames[connector.id] || connector.name}
+                </span>
                 {connector.id === "coinbaseWallet" && (
                   <span className="text-xs text-muted-foreground">Mobile or QR connection</span>
                 )}

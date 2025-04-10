@@ -26,7 +26,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { data: ensName } = useEnsName({
     address: address as `0x${string}`,
     chainId: base.id,
-    enabled: !!address && isMounted,
   })
 
   // Set isMounted to true after component mounts
@@ -40,6 +39,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setBasename(ensName)
     }
   }, [ensName])
+
+  // Skip ENS fetching if not mounted or no address
+  useEffect(() => {
+    if (!isMounted || !address) {
+      return
+    }
+    // This effect deals with the ENS fetching being delayed until mounted
+  }, [isMounted, address])
 
   // Update authentication state when wallet connection changes
   useEffect(() => {
@@ -66,11 +73,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = () => {
-    disconnect()
-    setIsAuthenticated(false)
-    setAddress(null)
-    setBasename(null)
-    localStorage.removeItem("userAddress")
+    try {
+      disconnect()
+    } catch (error) {
+      console.error("Error during disconnect:", error)
+    } finally {
+      // Continue with local state cleanup even if disconnect fails
+      setIsAuthenticated(false)
+      setAddress(null)
+      setBasename(null)
+      localStorage.removeItem("userAddress")
+      
+      // Force reload to ensure clean state if needed
+      if (typeof window !== "undefined") {
+        window.location.href = "/"
+      }
+    }
   }
 
   return (

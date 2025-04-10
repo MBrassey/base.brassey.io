@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Wallet } from 'lucide-react'
 
 interface WalletIconProps {
@@ -12,9 +12,22 @@ interface WalletIconProps {
 export function WalletIcon({ connectorId, name, size = 28 }: WalletIconProps) {
   const [hasError, setHasError] = useState(false)
   
+  useEffect(() => {
+    console.log(`WalletIcon rendered for: ${connectorId}, name: ${name}`)
+  }, [connectorId, name])
+  
   // Map connector IDs to icon paths
-  const getIconPath = (id: string): string => {
+  const getIconPath = (id: string, walletName: string): string => {
     const idLower = id.toLowerCase()
+    const nameLower = walletName.toLowerCase()
+    
+    console.log(`Getting icon path for: ${idLower}, name: ${nameLower}`)
+    
+    // Check for Brave wallet specifically - it typically uses the injected connector
+    // but will have "brave" in the name
+    if (nameLower.includes('brave')) {
+      return '/wallet-icons/brave-wallet.svg'
+    }
     
     if (idLower.includes('metamask') || idLower === 'injected') {
       return '/wallet-icons/metamask-simple.svg'
@@ -32,7 +45,7 @@ export function WalletIcon({ connectorId, name, size = 28 }: WalletIconProps) {
     return ''
   }
 
-  const iconPath = getIconPath(connectorId)
+  const iconPath = getIconPath(connectorId, name)
   
   if (hasError || !iconPath) {
     return <Wallet className="h-5 w-5" />
@@ -45,7 +58,10 @@ export function WalletIcon({ connectorId, name, size = 28 }: WalletIconProps) {
       width={size}
       height={size}
       className="w-7 h-7 object-contain"
-      onError={() => setHasError(true)}
+      onError={(e) => {
+        console.error(`Error loading image from path: ${iconPath}`)
+        setHasError(true)
+      }}
     />
   )
 } 

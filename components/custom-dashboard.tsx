@@ -12,6 +12,7 @@ import { DashboardHeader } from "./dashboard-header"
 import { ErrorBoundary } from "./error-boundary"
 import { WalletCard } from "./wallet-card"
 import { NFTGallery } from "./nft-gallery"
+import { Spinner } from "@/components/ui/spinner"
 import Image from "next/image"
 
 export function CustomDashboard() {
@@ -117,7 +118,16 @@ export function CustomDashboard() {
                     d="M1247.8,2500c691.6,0,1252.2-559.6,1252.2-1250C2500,559.6,1939.4,0,1247.8,0C591.7,0,53.5,503.8,0,1144.9h1655.1v210.2H0C53.5,1996.2,591.7,2500,1247.8,2500z"
                   />
                 </svg>
-                {loading ? 'Fetching Block...' : blockHeight ? `Block: ${blockHeight.toLocaleString()}` : 'Connecting...'}
+                {loading ? (
+                  <span className="flex items-center">
+                    <Spinner size="sm" color="white" className="mr-2" />
+                    <span>Loading...</span>
+                  </span>
+                ) : blockHeight ? (
+                  `Block: ${blockHeight.toLocaleString()}`
+                ) : (
+                  'Connecting...'
+                )}
               </Button>
             </div>
           </div>
