@@ -5,31 +5,19 @@ A Web3 Dashboard for the Base blockchain with wallet connection, on-chain identi
 ## Architecture Overview
 
 ```mermaid
-graph TD
-    subgraph "Frontend"
-        A[Next.js App] --> B[Wallet Connection]
-        A --> C[UI Components]
-        C --> D[NFT Gallery]
-        C --> E[Token Gallery]
-        C --> F[Profile/Dashboard]
-    end
+graph TB
+    A[Next.js App] --> B[API Routes]
+    B --> C[Alchemy SDK]
+    C --> D[Base Blockchain]
     
-    subgraph "Wallet Integration"
-        B --> G[MetaMask]
-        B --> H[Coinbase Wallet]
-        B --> I[WalletConnect]
-        B --> J[Brave Wallet]
-    end
+    A --> E[Wallet Connection]
+    E --> F[MetaMask/Coinbase/WalletConnect]
+    F --> D
     
-    subgraph "Backend"
-        A --> K[API Routes]
-        K --> L[Alchemy SDK]
-    end
-    
-    subgraph "Blockchain"
-        L --> M[Base Mainnet]
-        G & H & I & J --> M
-    end
+    A --> G[UI Components]
+    G --> H[NFT Gallery]
+    G --> I[Token Gallery]
+    G --> J[Profile View]
 ```
 
 ## Technical Stack
