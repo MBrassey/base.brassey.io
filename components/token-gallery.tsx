@@ -7,6 +7,29 @@ import { useAccount } from "wagmi"
 import { Spinner } from "@/components/ui/spinner"
 import { ExternalLink, AlertCircle, Coins } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { cn } from "@/lib/utils"
+
+// CSS for the pulsating glow animation
+const pulsateCSS = `
+@keyframes pulsate {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 82, 255, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(0, 82, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 82, 255, 0);
+  }
+}
+
+.balance-pulsate {
+  animation: pulsate 1.5s infinite;
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  display: inline-block;
+}
+`;
 
 // Type for tokens returned from API
 interface TokenData {
@@ -205,14 +228,17 @@ export function TokenGallery() {
                     <div className="text-sm text-muted-foreground">{token.symbol}</div>
                   </div>
                   <div className="text-right">
-                    <div className="font-medium font-mono">
+                    <style>{pulsateCSS}</style>
+                    <div className={cn(
+                      "font-medium font-mono balance-pulsate bg-black/5 dark:bg-white/5 text-primary",
+                    )}>
                       {formatTokenBalance(token.balance, token.decimals)}
                     </div>
                     <a 
                       href={`https://basescan.org/token/${token.contractAddress}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center justify-end gap-1 text-xs text-muted-foreground hover:text-primary"
+                      className="flex items-center justify-end gap-1 text-xs text-muted-foreground hover:text-primary mt-1"
                     >
                       <span>View</span>
                       <ExternalLink className="h-3 w-3" />

@@ -16,22 +16,23 @@
     --secondary-foreground: 240 5.9% 10%;
     --muted: 240 4.8% 95.9%;
     --muted-foreground: 240 3.8% 46.1%;
-    --accent: 200 38% 45%;
+    --accent: 203 34% 45%; /* #4A7E9B - accent color */
     --accent-foreground: 0 0% 98%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
-    --ring: 200 38% 45%;
+    --ring: 203 34% 45%; /* #4A7E9B - accent color */
     --radius: 0.5rem;
+    --sidebar-background: 0 0% 100%; /* Match card color */
   }
 
   .dark {
-    --background: 240 10% 3.9%;
+    --background: 192 40% 1.5%; /* #020506 - very dark background */
     --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
+    --card: 213 9% 8%; /* #0E1115 - dark gray for cards */
     --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
+    --popover: 213 9% 8%;
     --popover-foreground: 0 0% 98%;
     --primary: 200 38% 45%;
     --primary-foreground: 0 0% 98%;
@@ -39,13 +40,14 @@
     --secondary-foreground: 0 0% 98%;
     --muted: 240 3.7% 15.9%;
     --muted-foreground: 240 5% 64.9%;
-    --accent: 200 38% 45%;
+    --accent: 203 34% 45%; /* #4A7E9B - accent color */
     --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
-    --ring: 200 38% 45%;
+    --ring: 203 34% 45%; /* #4A7E9B - accent color */
+    --sidebar-background: 213 9% 8%; /* Match card color */
   }
 }
 
@@ -56,6 +58,22 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Force sidebar to use card background color */
+[data-sidebar="sidebar"] {
+  background-color: hsl(var(--card)) !important;
+}
+
+/* Target all sidebar elements more aggressively */
+.bg-sidebar, 
+div[data-sidebar="sidebar"], 
+[data-sidebar], 
+[class*="bg-sidebar"],
+[data-sidebar] *,
+[data-state="expanded"] [data-sidebar="sidebar"],
+[data-state="collapsed"] [data-sidebar="sidebar"] {
+  background-color: hsl(var(--card)) !important;
 }
 
 /* Enhanced styling for the IdentityCard component */

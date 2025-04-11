@@ -20,14 +20,13 @@ export default function Dashboard() {
 
   const handleLogout = () => {
     logout()
-    router.push("/")
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-background">
+    <div className="flex min-h-screen w-full flex-col bg-black">
       <ErrorBoundary
         fallback={
-          <nav className="flex h-14 items-center border-b border-border bg-background px-4 lg:h-[60px]">
+          <nav className="flex h-14 items-center border-b border-border bg-black px-4 lg:h-[60px]">
             <div className="flex items-center gap-2 font-semibold">
               <User className="h-6 w-6" />
               <span>earn.base</span>
@@ -38,7 +37,7 @@ export default function Dashboard() {
         <DashboardHeader />
       </ErrorBoundary>
       <div className="flex flex-1">
-        <aside className="hidden w-[200px] flex-col border-r border-border bg-background md:flex lg:w-[240px]">
+        <aside className="hidden w-[200px] flex-col border-r border-border bg-black md:flex lg:w-[240px]">
           <div className="flex flex-col gap-2 p-4">
             <Link
               href="#"

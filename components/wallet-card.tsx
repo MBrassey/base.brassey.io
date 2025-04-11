@@ -10,6 +10,29 @@ import { useEffect, useState } from "react"
 import { ErrorBoundary } from "./error-boundary"
 import { BaseAvatar, BaseName } from "./onchain-components"
 import { useCdpProjectId } from "@/hooks/use-cdp-project-id"
+import { cn } from "@/lib/utils"
+
+// CSS for the pulsating glow animation
+const pulsateCSS = `
+@keyframes pulsate {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 82, 255, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(0, 82, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 82, 255, 0);
+  }
+}
+
+.balance-pulsate {
+  animation: pulsate 1.5s infinite;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  display: inline-block;
+}
+`;
 
 interface WalletCardProps {
   address: string
@@ -132,11 +155,19 @@ export function WalletCard({ address, chain, className = "" }: WalletCardProps) 
               {isBalanceLoading ? (
                 <Skeleton className="h-8 w-32 mx-auto md:ml-auto" />
               ) : (
-                <div>
-                  {balanceData
-                    ? `${Number.parseFloat(formatEther(balanceData.value)).toFixed(4)} ${balanceData.symbol}`
-                    : "0.0000 ETH"}
-                </div>
+                <>
+                  <style>{pulsateCSS}</style>
+                  <div className={cn(
+                    "balance-pulsate bg-black/5 dark:bg-white/5",
+                    balanceData && Number(formatEther(balanceData.value)) > 0 
+                      ? "text-primary" 
+                      : "text-muted-foreground"
+                  )}>
+                    {balanceData
+                      ? `${Number.parseFloat(formatEther(balanceData.value)).toFixed(4)} ${balanceData.symbol}`
+                      : "0.0000 ETH"}
+                  </div>
+                </>
               )}
             </div>
           </div>

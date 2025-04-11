@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { LogOut, Menu, Settings, User } from "lucide-react"
+import { LogOut, Menu, Settings, User, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -20,12 +20,12 @@ import { BaseAvatar, BaseName } from "./onchain-components"
 
 export function DashboardHeader() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { address, logout } = useAuth()
+  const { address, logout, isLoggingOut } = useAuth()
   const router = useRouter()
 
   const handleLogout = () => {
     logout()
-    router.push("/")
+    // No router.push needed
   }
 
   // Format address for display (fallback)
@@ -35,7 +35,7 @@ export function DashboardHeader() {
   }
 
   return (
-    <nav className="flex h-14 items-center border-b border-border bg-background px-4 lg:h-[60px]">
+    <nav className="fixed top-0 left-0 right-0 z-40 flex h-14 items-center border-b border-border bg-black/60 backdrop-blur-md px-4 lg:h-[60px]">
       <div className="flex items-center gap-2 lg:gap-3">
         <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
           <SheetTrigger asChild>
@@ -44,7 +44,7 @@ export function DashboardHeader() {
               <span className="sr-only">Toggle navigation menu</span>
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="flex flex-col p-0">
+          <SheetContent side="left" className="flex flex-col p-0 bg-black border-r border-border">
             <div className="px-6 py-4">
               <Link href="/dashboard" className="flex items-center gap-0 font-mono text-xl">
                 <span className="text-primary">base</span>
@@ -69,10 +69,20 @@ export function DashboardHeader() {
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-red-500 text-left"
+                  disabled={isLoggingOut}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-red-500 text-left disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <LogOut className="h-4 w-4" />
-                  Logout
+                  {isLoggingOut ? (
+                    <>
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
+                      Logging out...
+                    </>
+                  ) : (
+                    <>
+                      <LogOut className="h-4 w-4" />
+                      Logout
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -110,9 +120,22 @@ export function DashboardHeader() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
+                <DropdownMenuItem 
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoggingOut ? (
+                    <>
+                      <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
+                      <span>Logging out...</span>
+                    </>
+                  ) : (
+                    <>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Log out</span>
+                    </>
+                  )}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

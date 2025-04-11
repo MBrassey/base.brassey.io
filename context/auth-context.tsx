@@ -1,8 +1,9 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from "react"
 import { useAccount, useDisconnect, useEnsName } from "wagmi"
 import { base } from "viem/chains"
+import { useRouter } from "next/navigation"
 
 type AuthContextType = {
   isAuthenticated: boolean
@@ -10,6 +11,7 @@ type AuthContextType = {
   basename: string | null
   login: (address: string) => void
   logout: () => void
+  isLoggingOut: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -19,8 +21,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [address, setAddress] = useState<string | null>(null)
   const [basename, setBasename] = useState<string | null>(null)
   const [isMounted, setIsMounted] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const logoutTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const { address: connectedAddress, isConnected } = useAccount()
   const { disconnect } = useDisconnect()
+  const router = useRouter()
 
   // Get the ENS name (basename) for the address
   const { data: ensName } = useEnsName({
@@ -31,6 +36,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Set isMounted to true after component mounts
   useEffect(() => {
     setIsMounted(true)
+    
+    // Clear any logout timeout on unmount
+    return () => {
+      if (logoutTimeoutRef.current) {
+        clearTimeout(logoutTimeoutRef.current);
+      }
+    };
   }, [])
 
   // Update basename when ENS name changes
@@ -73,28 +85,111 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = () => {
-    try {
-      // First disconnect from wallet if connected
-      disconnect()
-    } catch (error) {
-      console.error("Error during disconnect:", error)
-    } finally {
-      // Clean up local state - ensure this always runs
-      setIsAuthenticated(false)
-      setAddress(null)
-      setBasename(null)
-      localStorage.removeItem("userAddress")
-      
-      // Force a window reload to ensure all state is properly cleared
-      // This is important for wallet connections to reset properly
-      if (typeof window !== 'undefined') {
-        window.location.href = '/';
-      }
+    // Prevent multiple logout attempts
+    if (isLoggingOut) {
+      return;
     }
+    
+    // Mark as logging out immediately
+    setIsLoggingOut(true);
+    
+    // Clear local state first
+    setIsAuthenticated(false);
+    setAddress(null);
+    setBasename(null);
+    
+    // Clear all localStorage items related to wallets and authentication
+    localStorage.removeItem("userAddress");
+    
+    // Add flag to prevent WalletConnect from reconnecting during page transition
+    sessionStorage.setItem("WALLET_DISCONNECT_IN_PROGRESS", "true");
+    
+    // Create a global error handler to catch WalletConnect errors during logout
+    if (typeof window !== 'undefined') {
+      // Intercept console errors during logout to prevent them from being displayed
+      const originalConsoleError = console.error;
+      console.error = function(...args) {
+        // Suppress WalletConnect errors during logout
+        if (
+          args[0] && 
+          (String(args[0]).includes('walletconnect') || 
+           String(args[0]).includes('WalletConnect'))
+        ) {
+          return; // Don't log WalletConnect errors
+        }
+        return originalConsoleError.apply(console, args);
+      };
+      
+      // Add a beforeunload handler to prevent reconnection during page navigation
+      window.onbeforeunload = function() {
+        // This will be executed right before the page is unloaded
+        // Set a flag that will persist through the refresh
+        sessionStorage.setItem("WALLET_DISCONNECT_IN_PROGRESS", "true");
+        
+        // Clean up storage one final time
+        try {
+          Object.keys(localStorage).forEach(key => {
+            if (
+              key.includes('wagmi') || 
+              key.includes('wallet') || 
+              key.includes('walletconnect') || 
+              key.includes('wc@')
+            ) {
+              localStorage.removeItem(key);
+            }
+          });
+        } catch (e) {
+          // Ignore errors during cleanup
+        }
+      };
+    }
+    
+    // Clear WalletConnect related storage
+    try {
+      // Clear all wallet connect related items from localStorage
+      Object.keys(localStorage).forEach(key => {
+        if (
+          key.includes('wagmi') || 
+          key.includes('wallet') || 
+          key.includes('walletconnect') || 
+          key.includes('wc@') ||
+          key.includes('connectedWallets') ||
+          key.includes('coinbase') ||
+          key.includes('brave') ||
+          key.includes('metamask')
+        ) {
+          localStorage.removeItem(key);
+        }
+      });
+      
+      // Also clear sessionStorage for WalletConnect
+      Object.keys(sessionStorage).forEach(key => {
+        if (
+          key.includes('wagmi') || 
+          key.includes('wallet') || 
+          key.includes('walletconnect') || 
+          key.includes('wc@')
+        ) {
+          sessionStorage.removeItem(key);
+        }
+      });
+    } catch (error) {
+      console.error("Error clearing wallet data:", error);
+    }
+    
+    // Try to disconnect wallet after clearing storage
+    try {
+      disconnect();
+    } catch (error) {
+      console.error("Error during disconnect:", error);
+    }
+    
+    // Use a special URL parameter approach to signal the logout
+    window.location.href = "/?logout=true";
   }
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, address, basename, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, address, basename, login, logout, isLoggingOut }}>
       {children}
     </AuthContext.Provider>
   )

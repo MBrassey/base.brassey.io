@@ -13,7 +13,7 @@ import { BaseAvatar, BaseName } from "@/components/onchain-components"
 
 export default function ProfilePage() {
   const router = useRouter()
-  const { isAuthenticated, address, logout } = useAuth()
+  const { isAuthenticated, address, logout, isLoggingOut } = useAuth()
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -22,8 +22,8 @@ export default function ProfilePage() {
   }, [isAuthenticated, router])
 
   const handleLogout = () => {
-    logout()
-    router.push("/")
+    logout();
+    // No router.push needed here - removing to avoid race conditions
   }
 
   if (!isAuthenticated || !address) {
@@ -40,10 +40,10 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-black">
       <ErrorBoundary
         fallback={
-          <nav className="flex h-14 items-center border-b border-border bg-background px-4 lg:h-[60px]">
+          <nav className="flex h-14 items-center border-b border-border bg-black px-4 lg:h-[60px]">
             <div className="flex items-center gap-0 font-mono text-xl">
               <span className="text-primary">base</span>
               <span className="text-foreground">.earn</span>
@@ -53,9 +53,9 @@ export default function ProfilePage() {
       >
         <DashboardHeader />
       </ErrorBoundary>
-      <div className="flex flex-1">
+      <div className="flex flex-1 pt-14 lg:pt-[60px]">
         {/* Add the same sidebar as in dashboard */}
-        <aside className="hidden w-[200px] flex-col border-r border-border bg-background md:flex lg:w-[240px]">
+        <aside className="hidden fixed top-14 bottom-0 lg:top-[60px] w-[200px] flex-col border-r border-border bg-black md:flex lg:w-[240px] overflow-y-auto">
           <div className="flex flex-col gap-2 p-4">
             <Link
               href="/dashboard"
@@ -73,14 +73,24 @@ export default function ProfilePage() {
             </Link>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-red-500 text-left"
+              disabled={isLoggingOut}
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-red-500 text-left disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <LogOut className="h-4 w-4" />
-              Logout
+              {isLoggingOut ? (
+                <>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
+                  Logging out...
+                </>
+              ) : (
+                <>
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </>
+              )}
             </button>
           </div>
         </aside>
-        <main className="flex flex-1 items-center justify-center p-4 md:p-8">
+        <main className="flex flex-1 items-center justify-center p-4 md:pl-[200px] lg:pl-[240px] md:p-8">
           <Card className="w-full max-w-lg shadow-lg">
             <CardHeader className="pb-4">
               <CardTitle className="text-2xl">Your Profile</CardTitle>
@@ -148,9 +158,23 @@ export default function ProfilePage() {
               </div>
             </CardContent>
             <CardFooter className="flex justify-end border-t pt-6">
-              <Button variant="destructive" onClick={handleLogout} className="flex items-center gap-2">
-                <LogOut className="h-4 w-4" />
-                Logout
+              <Button 
+                variant="destructive" 
+                onClick={handleLogout} 
+                disabled={isLoggingOut}
+                className="flex items-center gap-2"
+              >
+                {isLoggingOut ? (
+                  <>
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    Logging out...
+                  </>
+                ) : (
+                  <>
+                    <LogOut className="h-4 w-4" />
+                    Logout
+                  </>
+                )}
               </Button>
             </CardFooter>
           </Card>

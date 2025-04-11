@@ -40,7 +40,7 @@ export default function Dashboard() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      <nav className="flex h-14 items-center border-b bg-background px-4 lg:h-[60px]">
+      <nav className="fixed top-0 left-0 right-0 z-40 flex h-14 items-center border-b bg-black/60 backdrop-blur-md px-4 lg:h-[60px]">
         <div className="flex items-center gap-2 lg:gap-3">
           <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
             <SheetTrigger asChild>
@@ -137,8 +137,8 @@ export default function Dashboard() {
           </DropdownMenu>
         </div>
       </nav>
-      <div className="flex flex-1">
-        <aside className="hidden w-[200px] flex-col border-r bg-background md:flex lg:w-[240px]">
+      <div className="flex flex-1 pt-14 lg:pt-[60px]">
+        <aside className="hidden fixed top-14 bottom-0 lg:top-[60px] w-[200px] flex-col border-r bg-card md:flex lg:w-[240px] overflow-y-auto">
           <div className="flex flex-col gap-2 p-4">
             <Link
               href="#"
@@ -170,7 +170,7 @@ export default function Dashboard() {
             </Link>
           </div>
         </aside>
-        <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+        <main className="flex flex-1 flex-col gap-4 p-4 md:pl-[200px] lg:pl-[240px] md:gap-8 md:p-8">
           <div className="flex items-center gap-4">
             <h1 className="flex-1 font-semibold text-lg md:text-2xl">Dashboard</h1>
             <div className="flex items-center gap-2">
