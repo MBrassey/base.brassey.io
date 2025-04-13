@@ -1,6 +1,6 @@
 # base.brassey.io
 
-A Web3 Dashboard for the Base blockchain with wallet connection, on-chain identity features, and NFT display capabilities.
+A Web3 Dashboard for the Base blockchain with wallet connection, on-chain identity features, ERC-20 token support, and NFT display capabilities.
 
 ## Architecture Overview
 
@@ -87,6 +87,14 @@ The application supports multiple wallet connection methods:
 - Wallet balances for Base tokens
 - On-chain identity resolution through OnchainKit
 - ENS-compatible name resolution for Base addresses
+- ERC-20 token support for managing and viewing token balances
+
+### Base Identity Integrations
+- **Base Identity Card**: Display personalized on-chain identity card
+- **Avatar**: Show user's on-chain avatar with Coinbase OnchainKit integration
+- **Basename**: Resolve and display Base usernames (similar to ENS names)
+- **Social Connections**: Link and display social profiles connected to Base identity
+- **Fund Integration**: Support for Coinbase Wallet's seamless funding and withdrawal mechanisms
 
 ### User Interface
 - Dark mode UI with Base-inspired design
@@ -101,6 +109,7 @@ app/                   # Next.js App Router structure
 ├── api/               # API routes for server-side operations
 │   ├── block-height/  # Base blockchain height API
 │   ├── nfts/          # NFT retrieval via Alchemy
+│   ├── tokens/        # ERC-20 token data retrieval
 │   └── wallet-config/ # Secure wallet configuration
 ├── dashboard/         # Dashboard page
 ├── profile/           # User profile page
@@ -111,14 +120,18 @@ components/            # Reusable React components
 ├── wallet-card.tsx    # Wallet display with balance
 ├── wallet-connection-modal.tsx # Wallet connector UI
 ├── wallet-icon.tsx    # Custom wallet icons
-└── nft-gallery.tsx    # NFT display component
+├── nft-gallery.tsx    # NFT display component
+├── token-list.tsx     # ERC-20 token listing component
+└── identity-card.tsx  # Base identity card component
 
 context/               # React context providers
 └── auth-context.tsx   # Authentication state management
 
 hooks/                 # Custom React hooks
 ├── use-wallet-config.ts # Wallet configuration hook
-└── use-cdp-project-id.ts # Coinbase Developer Platform hook
+├── use-cdp-project-id.ts # Coinbase Developer Platform hook
+├── use-token-balances.ts # ERC-20 token balance hook
+└── use-base-identity.ts # Hook for Base identity features
 
 public/                # Static assets
 └── wallet-icons/      # SVG wallet icons
