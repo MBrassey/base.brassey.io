@@ -8,6 +8,7 @@ import { ExternalLink, AlertCircle, Coins } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
 import { useTokens, type TokenData } from "@/hooks/use-tokens"
+import { useEffect } from "react"
 
 // CSS for the pulsating glow animation
 const pulsateCSS = `
@@ -35,6 +36,13 @@ export function TokenGallery() {
   const { address } = useAccount()
   const { data, isLoading, isError, error, refetch } = useTokens()
   const tokens = data?.tokens || []
+
+  // Force refetch on mount
+  useEffect(() => {
+    if (address) {
+      refetch()
+    }
+  }, [address, refetch])
 
   // Format token balance based on decimals
   const formatTokenBalance = (balance: string, decimals: number) => {

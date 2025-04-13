@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { AlertCircle } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useNFTs, ExtendedNft } from "@/hooks/use-nfts"
+import { useEffect } from "react"
 
 // Contract addresses for special handling
 const CHART_CONTRACT_ADDRESS = "0xb679683E562b183161d5f3F93c6fA1d3115c4D30"
@@ -18,6 +19,13 @@ export function NFTGallery() {
   const { address } = useAccount()
   const { data, isLoading, isError, error, refetch } = useNFTs()
   const nfts = data?.nfts || [] as ExtendedNft[]
+
+  // Force refetch on mount
+  useEffect(() => {
+    if (address) {
+      refetch()
+    }
+  }, [address, refetch])
 
   if (!address) {
     return null

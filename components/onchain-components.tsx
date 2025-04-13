@@ -5,6 +5,8 @@ import { User } from "lucide-react"
 import { base } from "viem/chains"
 import dynamic from "next/dynamic"
 import { ErrorBoundary } from "./error-boundary"
+import Link from "next/link"
+import { Twitter, Globe, Github, ExternalLink } from "lucide-react"
 
 // Dynamically import OnchainKit components
 const DynamicAvatar = dynamic(() => import("@coinbase/onchainkit/identity").then((mod) => mod.Avatar), {
@@ -212,6 +214,106 @@ export function BaseAvatar({
       </div>
     </ErrorBoundary>
   )
+}
+
+// Update BaseSocials component
+export function BaseSocials({
+  address,
+  className = "",
+}: {
+  address: string
+  className?: string
+}) {
+  const [isMounted, setIsMounted] = useState(false)
+  const [hasError, setHasError] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [socialLinks, setSocialLinks] = useState<{
+    platform: string;
+    url: string;
+    username: string;
+  }[]>([])
+
+  useEffect(() => {
+    setIsMounted(true)
+    setIsLoading(true)
+    let isMounted = true;
+    
+    const fetchSocials = async () => {
+      if (!address) return;
+      
+      try {
+        // Use our API proxy endpoint to avoid CORS issues
+        const response = await fetch(`/api/socials/proxy?address=${address}`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch socials');
+        }
+        
+        const data = await response.json();
+        
+        if (isMounted) {
+          if (data && Array.isArray(data.socials)) {
+            setSocialLinks(data.socials);
+          } else {
+            setSocialLinks([]);
+          }
+          setIsLoading(false);
+        }
+      } catch (e) {
+        console.error('Error fetching social links:', e);
+        if (isMounted) {
+          setHasError(true);
+          setIsLoading(false);
+        }
+      }
+    };
+    
+    fetchSocials();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [address]);
+
+  if (isLoading && !hasError) {
+    return <SocialsFallback />;
+  }
+  
+  if (hasError || !socialLinks || socialLinks.length === 0) {
+    // Return empty div with height to prevent layout shifts
+    return <div className="h-6"></div>;
+  }
+  
+  return (
+    <div className={`flex gap-2 items-center ${className}`}>
+      {socialLinks.map((social, index) => {
+        let icon;
+        const platform = social.platform.toLowerCase();
+        
+        if (platform.includes('twitter') || platform.includes('x.com')) {
+          icon = <Twitter className="h-5 w-5" />;
+        } else if (platform.includes('github')) {
+          icon = <Github className="h-5 w-5" />;
+        } else if (platform.includes('website') || platform.includes('personal')) {
+          icon = <Globe className="h-5 w-5" />;
+        } else {
+          icon = <ExternalLink className="h-5 w-5" />;
+        }
+        
+        return (
+          <Link 
+            key={`${social.platform}-${index}`}
+            href={social.url.startsWith('http') ? social.url : `https://${social.url}`} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-gray-400 hover:text-gray-300 transition-colors"
+          >
+            {icon}
+          </Link>
+        );
+      })}
+    </div>
+  );
 }
 
 // Base Name component that uses OnchainKit's Name

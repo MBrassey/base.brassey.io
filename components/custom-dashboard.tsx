@@ -27,13 +27,15 @@ export function CustomDashboard() {
   const { data: blockHeightData, isLoading: isBlockHeightLoading, error: blockHeightError, refetch: refetchBlockHeight } = useBlockHeight()
   const queryClient = useQueryClient()
 
-  // Manually refresh all data
-  const refreshAllData = () => {
-    queryClient.invalidateQueries({ queryKey: ["tokens"] })
-    queryClient.invalidateQueries({ queryKey: ["nfts"] })
-    queryClient.invalidateQueries({ queryKey: ["blockHeight"] })
-    console.log("Manually refreshing all data...")
-  }
+  // Force data loading on mount
+  useEffect(() => {
+    if (address) {
+      // Invalidate queries to force fresh data
+      queryClient.invalidateQueries({ queryKey: ["tokens"] })
+      queryClient.invalidateQueries({ queryKey: ["nfts"] })
+      queryClient.invalidateQueries({ queryKey: ["blockHeight"] })
+    }
+  }, [address, queryClient])
 
   useEffect(() => {
     // Initial mount
@@ -96,15 +98,6 @@ export function CustomDashboard() {
           <div className="flex items-center gap-4">
             <h1 className="flex-1 font-semibold text-lg md:text-2xl">Dashboard</h1>
             <div className="flex items-center gap-2">
-              <Button 
-                size="sm" 
-                variant="outline" 
-                className="h-8" 
-                onClick={refreshAllData}
-              >
-                <RefreshCw className="mr-2 h-3.5 w-3.5" />
-                Refresh
-              </Button>
               <Button size="sm" className="h-8 bg-[#0052FF] hover:bg-[#0039b3]">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2500 2500" className="mr-2 h-3.5 w-3.5 text-white">
                   <path 

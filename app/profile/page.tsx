@@ -30,7 +30,6 @@ export default function ProfilePage() {
   const { data: profileData, isLoading: isProfileLoading } = useProfile()
   const queryClient = useQueryClient()
   const [formattedAddress, setFormattedAddress] = useState<`0x${string}` | null>(null)
-  const [isRefreshing, setIsRefreshing] = useState(false)
   const [directSocials, setDirectSocials] = useState<DirectSocialLink[]>([])
   const [socialsLoading, setSocialsLoading] = useState(true)
 
@@ -48,23 +47,25 @@ export default function ProfilePage() {
     }
   }, [isAuthenticated, router, address])
 
-  // Force refresh data when mounting the profile page
+  // Force data loading on mount
   useEffect(() => {
-    if (!address) return;
-    
-    // Refresh profile data more aggressively with several retries
-    const refreshIntervals = [800, 2000, 4000];
-    
-    const timeouts = refreshIntervals.map(delay => 
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["profile"] });
-      }, delay)
-    );
-    
-    return () => {
-      timeouts.forEach(timeout => clearTimeout(timeout));
-    };
-  }, [queryClient, address]);
+    if (address) {
+      // Invalidate profile data to ensure it loads fresh
+      queryClient.invalidateQueries({ queryKey: ["profile"] })
+      
+      // Stagger the data loading with several retries
+      const loadTimes = [100, 800, 2000];
+      const timeouts = loadTimes.map(time => 
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ["profile"] })
+        }, time)
+      );
+      
+      return () => {
+        timeouts.forEach(timeout => clearTimeout(timeout));
+      };
+    }
+  }, [address, queryClient]);
 
   // Fetch socials directly to ensure they all load
   useEffect(() => {
@@ -143,22 +144,6 @@ export default function ProfilePage() {
     logout();
   }
 
-  // Function to refresh all data
-  const refreshAllData = () => {
-    setIsRefreshing(true);
-    
-    // Invalidate all relevant query keys
-    queryClient.invalidateQueries({ queryKey: ["profile"] });
-    queryClient.invalidateQueries({ queryKey: ["tokens"] });
-    queryClient.invalidateQueries({ queryKey: ["nfts"] });
-    queryClient.invalidateQueries({ queryKey: ["blockHeight"] });
-    
-    // Set a timeout to reset the refreshing state after a moment
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 2000);
-  };
-
   if (!isAuthenticated || !address) {
     return <LoadingOverlay isLoading={true} text="Checking authentication..." />
   }
@@ -217,25 +202,6 @@ export default function ProfilePage() {
         <main className="flex flex-1 flex-col space-y-4 items-center justify-start p-4 md:pl-[200px] lg:pl-[240px] md:p-8">
           <div className="flex items-center w-full max-w-3xl justify-between mb-4">
             <h1 className="text-2xl font-bold">Profile</h1>
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={refreshAllData}
-              disabled={isRefreshing}
-              className="flex items-center gap-2"
-            >
-              {isRefreshing ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Refreshing...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="h-4 w-4" />
-                  Refresh Data
-                </>
-              )}
-            </Button>
           </div>
           
           <Card className="w-full max-w-lg shadow-lg">
