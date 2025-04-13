@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { useAuth } from "@/context/auth-context"
@@ -9,17 +9,39 @@ import { ExternalLink, LogOut, LayoutDashboard, User } from "lucide-react"
 import Link from "next/link"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { ErrorBoundary } from "@/components/error-boundary"
-import { BaseAvatar, BaseName } from "@/components/onchain-components"
+import { BaseAvatar, BaseName, BaseSocials } from "@/components/onchain-components"
+import dynamic from "next/dynamic"
+import { base } from "viem/chains"
+
+// Import Identity components dynamically
+const Identity = dynamic(
+  () => import('@coinbase/onchainkit/identity').then((mod) => mod.Identity),
+  { ssr: false }
+)
+
+const Socials = dynamic(
+  () => import('@coinbase/onchainkit/identity').then((mod) => mod.Socials),
+  { ssr: false }
+)
 
 export default function ProfilePage() {
   const router = useRouter()
   const { isAuthenticated, address, logout, isLoggingOut } = useAuth()
+  const [formattedAddress, setFormattedAddress] = useState<`0x${string}` | null>(null)
 
   useEffect(() => {
     if (!isAuthenticated) {
       router.push("/")
     }
-  }, [isAuthenticated, router])
+    
+    if (address) {
+      // Format address to ensure it starts with 0x
+      const formatted = address.startsWith('0x') 
+        ? address as `0x${string}` 
+        : `0x${address}` as `0x${string}`
+      setFormattedAddress(formatted)
+    }
+  }, [isAuthenticated, router, address])
 
   const handleLogout = () => {
     logout();
@@ -46,7 +68,7 @@ export default function ProfilePage() {
           <nav className="flex h-14 items-center border-b border-border bg-black px-4 lg:h-[60px]">
             <div className="flex items-center gap-0 font-mono text-xl">
               <span className="text-primary">base</span>
-              <span className="text-foreground">.earn</span>
+              <span className="text-foreground">.brassey.io</span>
             </div>
           </nav>
         }
@@ -118,6 +140,16 @@ export default function ProfilePage() {
                         </ErrorBoundary>
                       </h2>
                       <p className="text-sm text-muted-foreground">Base Network</p>
+                      
+                      {/* Social Links */}
+                      <div className="mt-1">
+                        <ErrorBoundary fallback={null}>
+                          <BaseSocials 
+                            address={address} 
+                            className="flex gap-2 items-center"
+                          />
+                        </ErrorBoundary>
+                      </div>
                     </div>
                   </div>
                 </div>

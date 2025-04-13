@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Filter, LayoutDashboard, User, LogOut } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { base } from "viem/chains"
 
 import { Button } from "@/components/ui/button"
@@ -20,6 +20,7 @@ export function CustomDashboard() {
   const [isMounted, setIsMounted] = useState(true) // Set to true by default for client components
   const { address, logout } = useAuth()
   const router = useRouter()
+  const pathname = usePathname() // Get current path
   const [blockHeight, setBlockHeight] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -86,14 +87,22 @@ export function CustomDashboard() {
           <div className="flex flex-col gap-2 p-4">
             <Link
               href="/dashboard"
-              className="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-accent-foreground transition-all hover:text-foreground"
+              className={`flex items-center gap-2 rounded-lg px-3 py-2 transition-all hover:text-foreground ${
+                pathname === "/dashboard" 
+                  ? "bg-accent text-accent-foreground" 
+                  : "text-muted-foreground"
+              }`}
             >
               <LayoutDashboard className="h-4 w-4" />
               Dashboard
             </Link>
             <Link
               href="/profile"
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-foreground"
+              className={`flex items-center gap-2 rounded-lg px-3 py-2 transition-all hover:text-foreground ${
+                pathname === "/profile" 
+                  ? "bg-accent text-accent-foreground" 
+                  : "text-muted-foreground"
+              }`}
             >
               <User className="h-4 w-4" />
               Profile

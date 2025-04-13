@@ -129,30 +129,88 @@ div[data-sidebar="sidebar"],
 /* Styling for the Socials component */
 .socials-wrapper {
   margin-top: 0.5rem;
+  position: relative;
+  z-index: 10;
 }
 
-.socials-wrapper :global(.onchainkit-socials) {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
+/* Completely override OnchainKit's social icons styling */
+.socials-wrapper :global(.onchainkit-socials),
+.socials-wrapper :global(.onchainkit-social-link) {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  gap: 1rem !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 .socials-wrapper :global(.onchainkit-social-link) {
-  color: hsl(var(--muted-foreground));
-  transition: color 0.2s ease-in-out;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
+  visibility: visible !important;
+  opacity: 1 !important;
+  background-color: transparent !important;
 }
 
-.socials-wrapper :global(.onchainkit-social-link):hover {
-  color: hsl(var(--primary));
-}
-
+/* Force the SVG elements to be visible */
+.socials-wrapper :global(.onchainkit-social-link) svg,
 .socials-wrapper :global(.onchainkit-social-link-icon) {
-  width: 1.25rem;
-  height: 1.25rem;
+  visibility: visible !important;
+  opacity: 1 !important;
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  min-height: 24px !important;
+  color: #4A7E9B !important;
+  fill: #4A7E9B !important;
+  stroke: #4A7E9B !important;
+  display: block !important;
+}
+
+/* Specifically target the paths inside SVGs */
+.socials-wrapper :global(.onchainkit-social-link) svg path,
+.socials-wrapper :global(.onchainkit-social-link) svg g,
+.socials-wrapper :global(.onchainkit-social-link-icon) path,
+.socials-wrapper :global(.onchainkit-social-link-icon) g {
+  visibility: visible !important;
+  opacity: 1 !important;
+  color: #4A7E9B !important;
+  fill: #4A7E9B !important;
+  stroke: #4A7E9B !important;
+}
+
+/* Make all links inside the socials wrapper use accent color */
+.socials-wrapper :global(a),
+.socials-wrapper :global(a *) {
+  color: #4A7E9B !important;
+  fill: #4A7E9B !important;
+  stroke: #4A7E9B !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  transition: all 0.2s ease !important;
+}
+
+/* Apply hover effects */
+.socials-wrapper :global(a:hover),
+.socials-wrapper :global(a:hover *) {
+  color: rgba(74, 126, 155, 0.8) !important;
+  fill: rgba(74, 126, 155, 0.8) !important;
+  stroke: rgba(74, 126, 155, 0.8) !important;
+  transform: scale(1.1) !important;
+}
+
+/* Force direct color on icons by class types that might be used */
+.socials-wrapper :global(.github),
+.socials-wrapper :global(.twitter),
+.socials-wrapper :global(.lens),
+.socials-wrapper :global(.farcaster),
+.socials-wrapper :global(.website),
+.socials-wrapper :global(.telegram) {
+  color: #4A7E9B !important;
+  fill: #4A7E9B !important;
+  stroke: #4A7E9B !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  width: 24px !important;
+  height: 24px !important;
 }
 
 @keyframes pulse-border {
@@ -186,4 +244,61 @@ div[data-sidebar="sidebar"],
 .pulsating-border:hover {
   border-color: hsl(var(--accent) / 0.8);
   box-shadow: 0 0 0 2px hsl(var(--accent) / 0.2);
+}
+
+/* Force color on all social links */
+a[href*="twitter.com"],
+a[href*="github.com"],
+a[href*="t.me"],
+a[href*="mirror.xyz"],
+a[href*="lens.xyz"],
+a[href*="farcaster"],
+.socials-wrapper :global(a) {
+  color: #4A7E9B !important; /* Hardcoded accent color */
+  fill: #4A7E9B !important;
+  stroke: #4A7E9B !important;
+}
+
+a[href*="twitter.com"]:hover,
+a[href*="github.com"]:hover,
+a[href*="t.me"]:hover,
+a[href*="mirror.xyz"]:hover,
+a[href*="lens.xyz"]:hover,
+a[href*="farcaster"]:hover,
+.socials-wrapper :global(a:hover) {
+  color: rgba(74, 126, 155, 0.8) !important; /* Hardcoded accent with opacity */
+}
+
+/* Fix for individual social providers */
+.socials-wrapper :global(.icon-github),
+.socials-wrapper :global(.icon-twitter),
+.socials-wrapper :global(.icon-lens),
+.socials-wrapper :global(.icon-farcaster),
+.socials-wrapper :global(.icon-website),
+.socials-wrapper :global(.icon-telegram),
+.socials-wrapper :global(.icon-mirror) {
+  fill: #4A7E9B !important;
+  color: #4A7E9B !important;
+  stroke: #4A7E9B !important;
+  width: 24px !important;
+  height: 24px !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  display: block !important;
+  position: relative !important;
+  z-index: 100 !important;
+}
+
+/* Target all SVG elements regardless of their parent class names */
+.socials-wrapper svg {
+  fill: #4A7E9B !important;
+  color: #4A7E9B !important;
+  stroke: #4A7E9B !important;
+  width: 24px !important;
+  height: 24px !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  display: block !important;
+  position: relative !important;
+  z-index: 100 !important;
 }

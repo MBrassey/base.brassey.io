@@ -16,15 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning className="dark">
       <head>
-        {/* These head elements are managed by Next.js metadata now */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.process = window.process || { env: {} };
-              window.global = window;
-            `,
-          }}
-        />
+        {/* Note: Removed dangerouslySetInnerHTML script to prevent share-modal errors */}
       </head>
       <body className={`${inter.className} bg-[#020506]`}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} forcedTheme="dark">
