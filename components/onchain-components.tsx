@@ -318,7 +318,6 @@ export function BaseSocials({
 }) {
   const [isMounted, setIsMounted] = useState(false)
   const [hasError, setHasError] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
   const [addressFormatted, setAddressFormatted] = useState<`0x${string}` | null>(null)
 
   useEffect(() => {
@@ -330,16 +329,8 @@ export function BaseSocials({
           ? address as `0x${string}` 
           : `0x${address}` as `0x${string}`
         setAddressFormatted(formattedAddr)
-        
-        // Use a longer delay to ensure all social data is properly loaded
-        const timer = setTimeout(() => {
-          setIsLoading(false)
-        }, 1000)
-        
-        return () => clearTimeout(timer)
       } catch (e) {
         setHasError(true)
-        setIsLoading(false)
       }
     }
   }, [address])
@@ -350,24 +341,16 @@ export function BaseSocials({
   }
 
   return (
-    <ErrorBoundary fallback={null}>
-      {!isLoading && (
-        <div 
-          className={`socials-wrapper ${className}`} 
-          style={{ 
-            display: 'block', 
-            visibility: 'visible',
-            position: 'relative',
-            zIndex: 50
-          }}
-        >
-          <DynamicSocials 
-            address={addressFormatted} 
-            chain={base}
-            className="text-[#4A7E9B]"
-          />
-        </div>
-      )}
+    <ErrorBoundary fallback={<SocialsFallback />}>
+      <div 
+        className={`socials-wrapper ${className}`} 
+      >
+        <DynamicSocials 
+          address={addressFormatted} 
+          chain={base}
+          className="text-[#4A7E9B]"
+        />
+      </div>
     </ErrorBoundary>
   )
 }
