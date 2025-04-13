@@ -26,17 +26,6 @@ export function WalletConnectionProvider({ children }: { children: React.ReactNo
   const { walletConnectProjectId, isLoading, error } = useWalletConfig()
   const [config, setConfig] = useState<ReturnType<typeof createConfig> | null>(null)
 
-  // Create a default config to avoid QueryClient errors
-  const defaultConfig = createConfig({
-    chains: [mainnet, base],
-    transports: {
-      [mainnet.id]: http(),
-      [base.id]: http(),
-    },
-    // If in logout process, don't initialize any connectors
-    connectors: isDisconnectInProgress ? [] : [metaMask()],
-  });
-
   useEffect(() => {
     // Ensure window.global is defined for wallet connectors
     if (typeof window !== 'undefined') {
@@ -44,13 +33,8 @@ export function WalletConnectionProvider({ children }: { children: React.ReactNo
       window.global = window;
     }
 
-    // Try to use the env var first, fallback to API response, finally use hardcoded fallback
-    const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 
-                      walletConnectProjectId || 
-                      fallbackProjectId;
-    
-    // Only create the config if we have the project ID and not in logout process
-    if (projectId && !isDisconnectInProgress) {
+    // Only create the config if not in logout process
+    if (!isDisconnectInProgress) {
       try {
         const wagmiConfig = createConfig({
           chains: [mainnet, base],
@@ -64,9 +48,10 @@ export function WalletConnectionProvider({ children }: { children: React.ReactNo
               appName: "base.brassey.io",
               headlessMode: false,
               appLogoUrl: "https://base.brassey.io/base-logo.svg",
+              preference: "all",
             }),
             walletConnect({
-              projectId,
+              projectId: fallbackProjectId,
               showQrModal: true,
               metadata: {
                 name: "base.brassey.io",
@@ -83,7 +68,7 @@ export function WalletConnectionProvider({ children }: { children: React.ReactNo
         console.error("Error creating wagmi config:", err);
       }
     }
-  }, [walletConnectProjectId]);
+  }, []);
 
   // If loading, show a skeleton UI
   if (isLoading) {
@@ -101,11 +86,33 @@ export function WalletConnectionProvider({ children }: { children: React.ReactNo
     )
   }
 
-  // If error or no config, use the default config
-  const finalConfig = config || defaultConfig;
-
   return (
-    <WagmiProvider config={finalConfig}>
+    <WagmiProvider config={config || createConfig({
+      chains: [mainnet, base],
+      transports: {
+        [mainnet.id]: http(),
+        [base.id]: http(),
+      },
+      connectors: isDisconnectInProgress ? [] : [
+        metaMask(),
+        coinbaseWallet({
+          appName: "base.brassey.io",
+          headlessMode: false,
+          appLogoUrl: "https://base.brassey.io/base-logo.svg",
+          preference: "all",
+        }),
+        walletConnect({
+          projectId: fallbackProjectId,
+          showQrModal: true,
+          metadata: {
+            name: "base.brassey.io",
+            description: "Base Name Service",
+            url: "https://base.brassey.io",
+            icons: ["https://base.brassey.io/base-logo.svg"]
+          }
+        }),
+      ],
+    })}>
       <QueryClientProvider client={queryClient}>
         {children}
       </QueryClientProvider>

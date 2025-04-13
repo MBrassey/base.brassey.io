@@ -44,22 +44,7 @@ export function WalletConnectionModal() {
   const [isConnecting, setIsConnecting] = useState(false)
   const [selectedConnector, setSelectedConnector] = useState<string | null>(null)
   const [connectionError, setConnectionError] = useState<string | null>(null)
-  const [debugInfo, setDebugInfo] = useState<string | null>(null)
   const { login } = useAuth()
-
-  // Log all connectors and their IDs to ensure we're matching correctly
-  useEffect(() => {
-    console.log("Available connectors:", connectors.map(c => ({ id: c.id, name: c.name })))
-  }, [connectors])
-
-  const walletNames: Record<string, string> = {
-    "injected": "MetaMask",
-    "metaMask": "MetaMask",
-    "coinbaseWallet": "Coinbase Wallet",
-    "walletConnect": "WalletConnect",
-    "phantom": "Phantom",
-    "brave": "Brave", 
-  }
 
   // Reset error when modal is closed
   useEffect(() => {
@@ -67,27 +52,28 @@ export function WalletConnectionModal() {
       setConnectionError(null)
       setIsConnecting(false)
       setSelectedConnector(null)
-      setDebugInfo(null)
     }
   }, [isOpen])
 
-  // Log when account state changes
+  // If connection is successful, close the modal and reset state
   useEffect(() => {
-    console.log("Account state changed:", { isConnected, address })
-    if (isConnected && address) {
-      console.log("Successfully connected with address:", address)
-      setDebugInfo(`Connected: ${address}`)
+    if (isConnected && address && isOpen) {
+      // Call login function with the connected address
+      login(address)
+      
+      // Reset UI state
+      setIsConnecting(false)
+      setSelectedConnector(null)
+      setIsOpen(false)
     }
-  }, [isConnected, address])
+  }, [isConnected, address, isOpen, login])
 
-  // Handle connection errors
+  // Handle errors
   useEffect(() => {
     if (error) {
-      console.error("Connection error:", error)
       setIsConnecting(false)
-      setDebugInfo(`Error: ${error.message}`)
       
-      // Only set error if it's not a user rejection (which is expected)
+      // Only set error if it's not a user rejection
       if (!error.message.includes("rejected") && !error.message.includes("denied")) {
         setConnectionError(error.message)
       } else {
@@ -96,51 +82,55 @@ export function WalletConnectionModal() {
     }
   }, [error])
 
-  // If connection is successful, close the modal and reset state
-  useEffect(() => {
-    if (isConnected && address && isOpen) {
-      login(address)
-      console.log("Logging in with address:", address)
-      setIsOpen(false)
-      setIsConnecting(false)
-      setSelectedConnector(null)
-    }
-  }, [isConnected, address, isOpen, login])
-
   const handleConnect = async (connector: any) => {
-    console.log("Connecting with connector:", connector.id)
     setIsConnecting(true)
     setConnectionError(null)
     setSelectedConnector(connector.id)
-    setDebugInfo(`Initiating connection with ${connector.id}...`)
 
     try {
-      // For Coinbase Wallet, let's try to force mobile
+      // Configure options for different connectors
       let options: any = {}
       
+      // Specific connector options
       if (connector.id === 'coinbaseWallet') {
-        options = { 
-          appOnly: false // Try allowing all connection methods
-        }
+        options = { appOnly: false }
       }
       
-      // Initiate the connection with the selected connector
-      console.log("Connecting with options:", options)
-      await connect({ connector, ...options })
+      if (connector.id === 'walletConnect') {
+        options = { showQrModal: true }
+      }
       
-      // Add a timeout to check if the connection was successful
-      setTimeout(() => {
-        if (!isConnected && selectedConnector === 'coinbaseWallet') {
-          setDebugInfo("Coinbase connection timed out. Try using MetaMask instead.")
-        }
-      }, 15000)
+      // Connect with the selected connector
+      await connect({ connector, ...options })
     } catch (err) {
       console.error("Connection error:", err)
       setConnectionError(err instanceof Error ? err.message : "Failed to connect. Please try again.")
-      setDebugInfo(`Exception: ${err instanceof Error ? err.message : String(err)}`)
       setIsConnecting(false)
       setSelectedConnector(null)
     }
+  }
+
+  // Simple helper to get wallet descriptions
+  const getWalletDescription = (connector: any) => {
+    if (connector.id === "coinbaseWallet") return "Mobile or QR connection";
+    if (connector.id === "walletConnect") return "Connect any wallet";
+    if (connector.id === "injected" || connector.id === "metaMask") return "Browser extension";
+    if (connector.id === "phantom") return "Solana wallet";
+    return "";
+  }
+
+  // Simple helper to get wallet display names
+  const getWalletDisplayName = (connector: any) => {
+    if (connector.id === "metaMask") return "MetaMask";
+    if (connector.id === "injected") {
+      if (connector.name?.toLowerCase().includes("brave")) return "Brave";
+      if (connector.name?.toLowerCase().includes("metamask")) return "MetaMask";
+      return connector.name || "Browser Extension";
+    }
+    if (connector.id === "coinbaseWallet") return "Coinbase Wallet";
+    if (connector.id === "walletConnect") return "WalletConnect";
+    if (connector.id === "phantom") return "Phantom";
+    return connector.name || "Unknown Wallet";
   }
 
   return (
@@ -153,19 +143,21 @@ export function WalletConnectionModal() {
             Connect Wallet
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Connect Wallet</DialogTitle>
+        <DialogContent className="max-w-[95%] w-full sm:max-w-md p-4 sm:p-6">
+          <DialogHeader className="pb-2">
+            <DialogTitle className="text-lg sm:text-xl">Connect Wallet</DialogTitle>
             <DialogDescription>
               Choose a wallet to connect to this application
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          
+          <div className="grid gap-3 py-3">            
+            {/* Display all connectors */}
             {connectors.map((connector) => (
               <Button
                 key={connector.id}
                 variant={selectedConnector === connector.id ? "default" : "outline"}
-                className="w-full justify-start h-14"
+                className="w-full justify-start h-14 px-3 md:px-4"
                 disabled={isPending || (isConnecting && selectedConnector !== connector.id)}
                 onClick={() => handleConnect(connector)}
               >
@@ -173,14 +165,10 @@ export function WalletConnectionModal() {
                   <WalletIcon connectorId={connector.id} name={connector.name} />
                 </div>
                 <div className="flex flex-col items-start">
-                  <span>
-                    {connector.id === 'injected' && connector.name.toLowerCase().includes('brave') 
-                      ? 'Brave' 
-                      : walletNames[connector.id] || connector.name}
+                  <span className="font-medium">{getWalletDisplayName(connector)}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {getWalletDescription(connector)}
                   </span>
-                  {connector.id === "coinbaseWallet" && (
-                    <span className="text-xs text-muted-foreground">Mobile or QR connection</span>
-                  )}
                 </div>
                 {isConnecting && selectedConnector === connector.id && (
                   <MousePointerClick className="ml-auto animate-pulse h-4 w-4" />
@@ -189,25 +177,11 @@ export function WalletConnectionModal() {
             ))}
           </div>
           
-          {isConnecting && selectedConnector === "coinbaseWallet" && (
+          {isConnecting && (
             <div className="bg-muted p-3 rounded-md mt-2">
-              <p className="text-sm text-center mb-2">
-                <strong>Having trouble with Coinbase Wallet?</strong>
+              <p className="text-sm text-center">
+                Please confirm the connection in your wallet
               </p>
-              <ul className="text-sm space-y-2">
-                <li className="flex items-start">
-                  <span className="mr-2">•</span>
-                  <span>If you have a passkey, try using that or try opening Coinbase Wallet app first</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="mr-2">•</span>
-                  <span>Make sure you have a Base network wallet set up in your Coinbase Wallet app</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="mr-2">•</span>
-                  <span>Try using MetaMask instead which has better support for Base network</span>
-                </li>
-              </ul>
             </div>
           )}
           
@@ -216,18 +190,6 @@ export function WalletConnectionModal() {
               <AlertCircle className="h-4 w-4" />
               <p>{connectionError}</p>
             </div>
-          )}
-          
-          {debugInfo && (
-            <div className="text-xs text-muted-foreground mt-2 p-2 bg-muted rounded-md">
-              <pre className="whitespace-pre-wrap break-all">{debugInfo}</pre>
-            </div>
-          )}
-          
-          {isConnecting && !connectionError && (
-            <p className="text-sm text-muted-foreground text-center mt-2">
-              Please complete the connection in your wallet...
-            </p>
           )}
         </DialogContent>
       </Dialog>
