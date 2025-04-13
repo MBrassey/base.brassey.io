@@ -1,0 +1,21 @@
+# IMPORTANT: Vercel Settings for Base Brassey App
+
+## Build & Development Settings
+Framework Preset: Next.js
+Build Command: node build.js
+Output Directory: .next
+Install Command: npm install
+Development Command: npm run dev
+Node.js Version: 20.x
+
+## TURN OFF Build Cache!
+Under Project > Settings > Advanced > Turn OFF "Build Cache"
+
+## Environment Variables - Check these are set and correct!
+- ALCHEMY_API_KEY
+- WALLETCONNECT_PROJECT_ID
+- NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
+
+## Critical: Override package manager settings
+The app must use npm, not pnpm. Ensure npm is selected in the Vercel settings.
+In your project settings, there should be an option to override the package manager detection. 

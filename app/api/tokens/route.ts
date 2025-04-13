@@ -77,35 +77,59 @@ const tokenMetadata: Record<string, { name: string, symbol: string, logo?: strin
   }
 }
 
-// Function to fetch token balances directly without using SDK
+// Function to fetch token balances directly
 async function fetchTokenBalances(address: string) {
   try {
-    const response = await fetch(`${BASE_ALCHEMY_URL}${alchemyApiKey}`, {
-      method: 'POST',
-      headers: {
-        'accept': 'application/json',
-        'content-type': 'application/json'
-      },
-      body: JSON.stringify({
-        id: 1,
-        jsonrpc: '2.0',
-        method: 'alchemy_getTokenBalances',
-        params: [address]
-      })
-    });
+    // Add a timeout using AbortController
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
     
-    const data = await response.json();
-    
-    if (data.error) {
-      console.error('Alchemy API error:', data.error);
+    try {
+      const response = await fetch(`${BASE_ALCHEMY_URL}${alchemyApiKey}`, {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'alchemy_getTokenBalances',
+          params: [address]
+        }),
+        signal: controller.signal,
+        cache: 'no-store'
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.error) {
+        console.error('Alchemy API error:', data.error);
+        return [];
+      }
+      
+      console.log(`Found ${data.result?.tokenBalances?.length || 0} tokens via direct Alchemy API`);
+      
+      return data.result?.tokenBalances || [];
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      
+      if (error.name === 'AbortError') {
+        console.error('Alchemy API request timed out');
+      } else {
+        console.error('Error fetching token balances:', error);
+      }
+      
       return [];
     }
-    
-    console.log(`Found ${data.result?.tokenBalances?.length || 0} tokens via direct Alchemy API`);
-    
-    return data.result?.tokenBalances || [];
   } catch (error) {
-    console.error('Error fetching token balances:', error);
+    console.error('Error in fetchTokenBalances:', error);
     return [];
   }
 }
@@ -118,17 +142,60 @@ async function getTokenMetadata(tokenAddress: string) {
     return cachedMetadata;
   }
   
-  // Otherwise fetch from Alchemy
+  // Otherwise fetch from Alchemy directly
   try {
-    if (!alchemy) return null;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
     
-    const metadata = await alchemy.core.getTokenMetadata(tokenAddress);
-    return {
-      name: metadata?.name || 'Unknown Token',
-      symbol: metadata?.symbol || '???',
-      logo: metadata?.logo || null,
-      decimals: metadata?.decimals || 18
-    };
+    try {
+      const response = await fetch(`${BASE_ALCHEMY_URL}${alchemyApiKey}`, {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'alchemy_getTokenMetadata',
+          params: [tokenAddress]
+        }),
+        signal: controller.signal,
+        cache: 'no-store'
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.error) {
+        console.error('Alchemy API error:', data.error);
+        return null;
+      }
+      
+      const metadata = data.result;
+      
+      return {
+        name: metadata?.name || 'Unknown Token',
+        symbol: metadata?.symbol || '???',
+        logo: metadata?.logo || null,
+        decimals: metadata?.decimals || 18
+      };
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      
+      if (error.name === 'AbortError') {
+        console.error('Alchemy API request timed out');
+      } else {
+        console.error('Error fetching token metadata:', error);
+      }
+      
+      return null;
+    }
   } catch (error) {
     console.error(`Error fetching metadata for token ${tokenAddress}:`, error);
     return null;
@@ -146,7 +213,7 @@ export async function GET(request: Request) {
   try {
     console.log(`Fetching token balances for address: ${address}`)
     
-    // Fetch token balances directly to avoid SDK referrer issues
+    // Fetch token balances directly
     const tokenBalances = await fetchTokenBalances(address);
     
     // Process the tokens that have non-zero balances
@@ -193,7 +260,11 @@ export async function GET(request: Request) {
     });
     
     console.log(`Returning ${filteredTokens.length} tokens with metadata`);
-    return NextResponse.json({ tokens: filteredTokens });
+    
+    // Create a response with no-cache headers
+    const jsonResponse = NextResponse.json({ tokens: filteredTokens });
+    jsonResponse.headers.set('Cache-Control', 'no-store, max-age=0');
+    return jsonResponse;
   } catch (error) {
     console.error('Error fetching tokens:', error);
     return NextResponse.json({ tokens: [] });

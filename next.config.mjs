@@ -27,6 +27,21 @@ const nextConfig = {
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
   },
+  webpack: (config, { isServer }) => {
+    // Fix module resolution issues
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': process.cwd(),
+    };
+    
+    // Ensure the tsx extensions are properly resolved
+    config.resolve.extensions = [
+      '.js', '.jsx', '.tsx', '.ts', '.json', 
+      ...(config.resolve.extensions || [])
+    ];
+    
+    return config;
+  },
 }
 
 if (userConfig) {

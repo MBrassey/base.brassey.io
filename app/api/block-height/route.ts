@@ -26,7 +26,9 @@ export async function GET() {
         id: 1,
         jsonrpc: "2.0",
         method: "eth_blockNumber"
-      })
+      }),
+      // Add cache settings to prevent caching issues
+      cache: 'no-store'
     });
 
     if (!response.ok) {
@@ -39,7 +41,11 @@ export async function GET() {
       // Convert hex to decimal
       const blockNumber = parseInt(data.result, 16);
       console.log("Block number fetched:", blockNumber);
-      return NextResponse.json({ blockNumber });
+      
+      // Create a response with no-cache headers
+      const jsonResponse = NextResponse.json({ blockNumber });
+      jsonResponse.headers.set('Cache-Control', 'no-store, max-age=0');
+      return jsonResponse;
     } else {
       console.error("Invalid response:", data);
       return NextResponse.json(

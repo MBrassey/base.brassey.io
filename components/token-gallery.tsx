@@ -1,6 +1,5 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAccount } from "wagmi"
@@ -8,6 +7,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { ExternalLink, AlertCircle, Coins } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
+import { useTokens, type TokenData } from "@/hooks/use-tokens"
 
 // CSS for the pulsating glow animation
 const pulsateCSS = `
@@ -31,56 +31,10 @@ const pulsateCSS = `
 }
 `;
 
-// Type for tokens returned from API
-interface TokenData {
-  contractAddress: string
-  balance: string
-  name: string
-  symbol: string
-  logo: string | null
-  decimals: number
-}
-
 export function TokenGallery() {
   const { address } = useAccount()
-  const [tokens, setTokens] = useState<TokenData[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    const fetchTokens = async () => {
-      if (!address) {
-        setLoading(false)
-        return
-      }
-
-      try {
-        const response = await fetch(`/api/tokens?address=${address}`, {
-          cache: 'no-store'
-        })
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`)
-        }
-        
-        const data = await response.json()
-        
-        if (data.tokens && Array.isArray(data.tokens)) {
-          setTokens(data.tokens)
-          setError(null)
-        } else {
-          throw new Error("Invalid token data format received")
-        }
-      } catch (err) {
-        console.error("Error fetching tokens:", err)
-        setError("Failed to load tokens")
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchTokens()
-  }, [address])
+  const { data, isLoading, isError, error, refetch } = useTokens()
+  const tokens = data?.tokens || []
 
   // Format token balance based on decimals
   const formatTokenBalance = (balance: string, decimals: number) => {
@@ -136,7 +90,7 @@ export function TokenGallery() {
     return null
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <Card>
         <CardHeader>
@@ -152,7 +106,7 @@ export function TokenGallery() {
     )
   }
 
-  if (error) {
+  if (isError) {
     return (
       <Card>
         <CardHeader>
@@ -163,9 +117,17 @@ export function TokenGallery() {
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Error</AlertTitle>
             <AlertDescription>
-              {error}
+              {error instanceof Error ? error.message : "Failed to load tokens"}
             </AlertDescription>
           </Alert>
+          <div className="mt-4 flex justify-center">
+            <button
+              onClick={() => refetch()}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-md"
+            >
+              Retry
+            </button>
+          </div>
         </CardContent>
       </Card>
     )

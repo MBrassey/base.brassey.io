@@ -4,6 +4,9 @@ import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/context/auth-context"
 import { WalletConnectionProvider } from "@/components/wallet-connection-provider"
+import { QueryProvider } from "@/components/providers/query-provider"
+import { DataRefreshProvider } from "@/components/data-refresh-provider"
+import { NavigationProgress } from "@/components/navigation-progress"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -20,9 +23,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={`${inter.className} bg-[#020506]`}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} forcedTheme="dark">
-          <WalletConnectionProvider>
-            <AuthProvider>{children}</AuthProvider>
-          </WalletConnectionProvider>
+          <QueryProvider>
+            <WalletConnectionProvider>
+              <AuthProvider>
+                <DataRefreshProvider>
+                  <NavigationProgress />
+                  {children}
+                </DataRefreshProvider>
+              </AuthProvider>
+            </WalletConnectionProvider>
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>

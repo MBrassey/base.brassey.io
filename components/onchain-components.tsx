@@ -1,13 +1,12 @@
 "use client"
 
 import { type ReactNode, useEffect, useState } from "react"
-import { User, Twitter, Globe, Github } from "lucide-react"
+import { User } from "lucide-react"
 import { base } from "viem/chains"
 import dynamic from "next/dynamic"
 import { ErrorBoundary } from "./error-boundary"
 
 // Dynamically import OnchainKit components
-// This approach doesn't directly reference the API key
 const DynamicAvatar = dynamic(() => import("@coinbase/onchainkit/identity").then((mod) => mod.Avatar), {
   ssr: false,
   loading: () => <AvatarFallback />,
@@ -16,11 +15,6 @@ const DynamicAvatar = dynamic(() => import("@coinbase/onchainkit/identity").then
 const DynamicName = dynamic(() => import("@coinbase/onchainkit/identity").then((mod) => mod.Name), {
   ssr: false,
   loading: () => <NameFallback address="" />,
-})
-
-const DynamicSocials = dynamic(() => import("@coinbase/onchainkit/identity").then((mod) => mod.Socials), {
-  ssr: false,
-  loading: () => <SocialsFallback />,
 })
 
 const DynamicAddress = dynamic(() => import("@coinbase/onchainkit/identity").then((mod) => mod.Address), {
@@ -72,8 +66,13 @@ function AddressFallback({ address }: { address: string }) {
 
 // Fallback components for socials
 function SocialsFallback() {
-  // Return null to avoid showing mock icons
-  return null;
+  return (
+    <div className="flex gap-2 items-center h-6">
+      <div className="h-5 w-5 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse"></div>
+      <div className="h-5 w-5 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse"></div>
+      <div className="h-5 w-5 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse"></div>
+    </div>
+  );
 }
 
 // Fallback component for identity card
@@ -111,6 +110,7 @@ export function BaseAvatar({
   const [isMounted, setIsMounted] = useState(false)
   const [hasError, setHasError] = useState(false)
   const [addressFormatted, setAddressFormatted] = useState<`0x${string}` | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   const sizeMap = {
     sm: "h-8 w-8",
@@ -120,27 +120,86 @@ export function BaseAvatar({
 
   const sizeClass = sizeMap[size] || sizeMap.md
 
+  // Create a manual fallback avatar with the same address
+  const generateAvatarBg = (addr: string) => {
+    // Simple hash function
+    let hash = 0;
+    for (let i = 0; i < addr.length; i++) {
+      hash = addr.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    
+    // Generate hue (0-360)
+    const h = Math.abs(hash % 360);
+    // Saturation and lightness
+    const s = 70;
+    const l = 55;
+    
+    return `hsl(${h}, ${s}%, ${l}%)`;
+  };
+
   useEffect(() => {
     setIsMounted(true)
+    setIsLoading(true)
+    let isMounted = true;
+    
     if (address) {
       try {
         // Format address to ensure it starts with 0x
         const formattedAddr = address.startsWith('0x') 
           ? address as `0x${string}` 
           : `0x${address}` as `0x${string}`
-        setAddressFormatted(formattedAddr)
+        
+        if (isMounted) {
+          setAddressFormatted(formattedAddr)
+          // Wait briefly for the dynamic component to load
+          setTimeout(() => {
+            if (isMounted) {
+              setIsLoading(false)
+            }
+          }, 500)
+        }
       } catch (e) {
-        setHasError(true)
+        if (isMounted) {
+          setHasError(true)
+          setIsLoading(false)
+        }
       }
     }
+    
+    return () => {
+      isMounted = false;
+    };
   }, [address])
 
-  if (!isMounted || hasError || !address || !addressFormatted) {
-    return <AvatarFallback size={size} />
+  // Use the fallback when loading, has error, or address isn't formatted
+  if (isLoading || !isMounted || hasError || !address || !addressFormatted) {
+    // Custom fallback with user address initials
+    return (
+      <div 
+        className={`${sizeClass} rounded-full overflow-hidden flex items-center justify-center`}
+        style={{ backgroundColor: address ? generateAvatarBg(address) : '#4A7E9B' }}
+      >
+        <div className="text-white font-bold" style={{ fontSize: size === 'sm' ? '14px' : size === 'lg' ? '22px' : '18px' }}>
+          {address ? address.substring(2, 4).toUpperCase() : '??'}
+        </div>
+      </div>
+    )
   }
 
+  // Use the OnchainKit avatar when everything is ready
   return (
-    <ErrorBoundary fallback={<AvatarFallback size={size} />}>
+    <ErrorBoundary 
+      fallback={
+        <div 
+          className={`${sizeClass} rounded-full overflow-hidden flex items-center justify-center`}
+          style={{ backgroundColor: generateAvatarBg(address) }}
+        >
+          <div className="text-white font-bold" style={{ fontSize: size === 'sm' ? '14px' : size === 'lg' ? '22px' : '18px' }}>
+            {address.substring(2, 4).toUpperCase()}
+          </div>
+        </div>
+      }
+    >
       <div className={`${sizeClass} rounded-full overflow-hidden ${className}`}>
         <DynamicAvatar
           address={addressFormatted}
@@ -308,53 +367,6 @@ export function SafeName({
   )
 }
 
-// Base Socials component that uses OnchainKit's Socials
-export function BaseSocials({
-  address,
-  className = "",
-}: {
-  address: string
-  className?: string
-}) {
-  const [isMounted, setIsMounted] = useState(false)
-  const [hasError, setHasError] = useState(false)
-  const [addressFormatted, setAddressFormatted] = useState<`0x${string}` | null>(null)
-
-  useEffect(() => {
-    setIsMounted(true)
-    if (address) {
-      try {
-        // Format address to ensure it starts with 0x
-        const formattedAddr = address.startsWith('0x') 
-          ? address as `0x${string}` 
-          : `0x${address}` as `0x${string}`
-        setAddressFormatted(formattedAddr)
-      } catch (e) {
-        setHasError(true)
-      }
-    }
-  }, [address])
-
-  // We'll return null until we have a properly formatted address
-  if (!isMounted || hasError || !address || !addressFormatted) {
-    return null
-  }
-
-  return (
-    <ErrorBoundary fallback={<SocialsFallback />}>
-      <div 
-        className={`socials-wrapper ${className}`} 
-      >
-        <DynamicSocials 
-          address={addressFormatted} 
-          chain={base}
-          className="text-[#4A7E9B]"
-        />
-      </div>
-    </ErrorBoundary>
-  )
-}
-
 // New component that uses the Identity container from OnchainKit
 export function BaseIdentity({
   address,
@@ -366,7 +378,13 @@ export function BaseIdentity({
   const [isMounted, setIsMounted] = useState(false)
   const [hasError, setHasError] = useState(false)
   const [addressFormatted, setAddressFormatted] = useState<`0x${string}` | null>(null)
-
+  
+  // Format address for display
+  const formatAddress = (addr: string) => {
+    if (!addr) return ""
+    return `${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}`
+  }
+  
   useEffect(() => {
     setIsMounted(true)
     if (address) {
@@ -381,26 +399,20 @@ export function BaseIdentity({
       }
     }
   }, [address])
-
+  
   if (!isMounted || hasError || !address || !addressFormatted) {
     return <IdentityCardFallback address={address} />
   }
   
-  // Format address for display
-  const formatAddress = (addr: string) => {
-    if (!addr) return ""
-    return `${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}`
-  }
-  
   return (
     <ErrorBoundary fallback={<IdentityCardFallback address={address} />}>
-      <div className={`w-full ${className}`}>
+      <div className={`identity-card ${className}`}>
         <div className="flex items-center gap-4">
           {/* Avatar */}
           <div className="h-16 w-16 rounded-full overflow-hidden">
             <BaseAvatar address={addressFormatted} size="lg" />
           </div>
-
+  
           <div className="flex-1">
             {/* Name */}
             <h2 className="text-lg font-semibold">
@@ -410,9 +422,11 @@ export function BaseIdentity({
             {/* Address */}
             <p className="text-sm text-muted-foreground">{formatAddress(address)}</p>
             
-            {/* Socials - only use real data from OnchainKit */}
-            <div className="mt-2">
-              <BaseSocials address={addressFormatted} />
+            {/* Socials - use OnchainKit's Socials component directly */}
+            <div className="mt-2 social-links-container">
+              {/* Import and use Socials from OnchainKit directly in your components */}
+              {/* Example: <Socials address={addressFormatted} chain={base} /> */}
+              {/* We don't import it here to keep component dependencies clean */}
             </div>
           </div>
         </div>

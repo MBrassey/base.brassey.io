@@ -1,0 +1,9 @@
+# Vercel Build Trigger - 2025-05-22 12:30
+# Standard build configuration with pnpm
+
+Using standard Next.js build process with:
+- pnpm as package manager with --no-frozen-lockfile to handle lockfile mismatches
+- TypeScript with build-time error ignoring
+- PostCSS properly configured for ESM/CJS compatibility
+- Explicit TypeScript dependencies installation before build
+- Normal Next.js configuration 

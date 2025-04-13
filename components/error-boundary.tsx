@@ -1,11 +1,14 @@
 "use client"
 
 import { Component, type ErrorInfo, type ReactNode } from "react"
+import { FallbackError } from "./fallback-error"
 
 interface ErrorBoundaryProps {
   children: ReactNode
-  fallback: ReactNode
+  fallback?: ReactNode
   onError?: (error: Error, errorInfo: ErrorInfo) => void
+  fallbackTitle?: string
+  fallbackDescription?: string
 }
 
 interface ErrorBoundaryState {
@@ -17,6 +20,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   constructor(props: ErrorBoundaryProps) {
     super(props)
     this.state = { hasError: false }
+    this.resetErrorBoundary = this.resetErrorBoundary.bind(this)
   }
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
@@ -37,9 +41,26 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     }
   }
 
+  resetErrorBoundary() {
+    this.setState({ hasError: false, error: undefined })
+  }
+
   render() {
     if (this.state.hasError) {
-      return this.props.fallback
+      // Use custom fallback if provided
+      if (this.props.fallback) {
+        return this.props.fallback
+      }
+      
+      // Otherwise use our default FallbackError component
+      return (
+        <FallbackError
+          error={this.state.error || null}
+          resetErrorBoundary={this.resetErrorBoundary}
+          title={this.props.fallbackTitle}
+          description={this.props.fallbackDescription}
+        />
+      )
     }
 
     return this.props.children

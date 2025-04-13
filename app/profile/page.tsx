@@ -5,29 +5,34 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { useAuth } from "@/context/auth-context"
 import { Button } from "@/components/ui/button"
-import { ExternalLink, LogOut, LayoutDashboard, User } from "lucide-react"
+import { ExternalLink, LogOut, LayoutDashboard, User, Loader2, RefreshCw, Twitter, Github, Globe } from "lucide-react"
 import Link from "next/link"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { ErrorBoundary } from "@/components/error-boundary"
-import { BaseAvatar, BaseName, BaseSocials } from "@/components/onchain-components"
-import dynamic from "next/dynamic"
+import { Socials } from "@coinbase/onchainkit/identity"
+import { BaseAvatar, BaseName } from "@/components/onchain-components"
 import { base } from "viem/chains"
+import { useProfile } from "@/hooks/use-profile"
+import { useQueryClient } from "@tanstack/react-query"
+import { LoadingOverlay } from "@/components/loading-overlay"
 
-// Import Identity components dynamically
-const Identity = dynamic(
-  () => import('@coinbase/onchainkit/identity').then((mod) => mod.Identity),
-  { ssr: false }
-)
-
-const Socials = dynamic(
-  () => import('@coinbase/onchainkit/identity').then((mod) => mod.Socials),
-  { ssr: false }
-)
+// Custom social type for direct implementation
+type DirectSocialLink = {
+  platform: string
+  url: string
+  username: string
+  icon: React.ReactNode
+}
 
 export default function ProfilePage() {
   const router = useRouter()
   const { isAuthenticated, address, logout, isLoggingOut } = useAuth()
+  const { data: profileData, isLoading: isProfileLoading } = useProfile()
+  const queryClient = useQueryClient()
   const [formattedAddress, setFormattedAddress] = useState<`0x${string}` | null>(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [directSocials, setDirectSocials] = useState<DirectSocialLink[]>([])
+  const [socialsLoading, setSocialsLoading] = useState(true)
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -43,13 +48,119 @@ export default function ProfilePage() {
     }
   }, [isAuthenticated, router, address])
 
+  // Force refresh data when mounting the profile page
+  useEffect(() => {
+    if (!address) return;
+    
+    // Refresh profile data more aggressively with several retries
+    const refreshIntervals = [800, 2000, 4000];
+    
+    const timeouts = refreshIntervals.map(delay => 
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["profile"] });
+      }, delay)
+    );
+    
+    return () => {
+      timeouts.forEach(timeout => clearTimeout(timeout));
+    };
+  }, [queryClient, address]);
+
+  // Fetch socials directly to ensure they all load
+  useEffect(() => {
+    if (!formattedAddress) return;
+    
+    const fetchSocials = async () => {
+      try {
+        setSocialsLoading(true);
+        
+        // Use a timeout to avoid hanging if the request takes too long
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        
+        // Direct fetch from Coinbase identity API - wrapped in try/catch to prevent console errors
+        const response = await fetch(`https://api.coinbase.com/identity/v1/socials?chain_id=${base.id}&address=${formattedAddress}`, {
+          signal: controller.signal,
+          mode: 'cors', // Explicitly state CORS mode
+        }).catch(() => null); // Silently catch network errors
+        
+        clearTimeout(timeoutId);
+        
+        // If response is null or not OK, silently fail
+        if (!response || !response.ok) {
+          // Don't show error message, just set empty socials
+          setDirectSocials([]);
+          return;
+        }
+        
+        const data = await response.json().catch(() => null);
+        
+        if (data && Array.isArray(data.socials)) {
+          // Process social links with icons
+          const links = data.socials
+            .filter((social: any) => social.url && social.platform)
+            .map((social: any) => {
+              const platform = social.platform.toLowerCase();
+              let icon = <ExternalLink className="h-4 w-4" />;
+              
+              if (platform.includes('twitter') || platform.includes('x.com')) {
+                icon = <Twitter className="h-4 w-4" />;
+              } else if (platform.includes('github')) {
+                icon = <Github className="h-4 w-4" />;
+              } else if (platform.includes('website') || platform.includes('personal')) {
+                icon = <Globe className="h-4 w-4" />;
+              }
+              
+              return {
+                platform: social.platform,
+                url: social.url,
+                username: social.username || social.url.split('/').pop() || social.platform,
+                icon
+              };
+            });
+          
+          setDirectSocials(links);
+        } else {
+          setDirectSocials([]);
+        }
+      } catch (error) {
+        // Silent fail - no console errors
+        setDirectSocials([]);
+      } finally {
+        setSocialsLoading(false);
+      }
+    };
+    
+    fetchSocials();
+    
+    // Clean up function
+    return () => {
+      // Nothing to clean up here since we handle abort inside the fetchSocials function
+    };
+  }, [formattedAddress]);
+
   const handleLogout = () => {
     logout();
-    // No router.push needed here - removing to avoid race conditions
   }
 
+  // Function to refresh all data
+  const refreshAllData = () => {
+    setIsRefreshing(true);
+    
+    // Invalidate all relevant query keys
+    queryClient.invalidateQueries({ queryKey: ["profile"] });
+    queryClient.invalidateQueries({ queryKey: ["tokens"] });
+    queryClient.invalidateQueries({ queryKey: ["nfts"] });
+    queryClient.invalidateQueries({ queryKey: ["blockHeight"] });
+    
+    // Set a timeout to reset the refreshing state after a moment
+    setTimeout(() => {
+      setIsRefreshing(false);
+    }, 2000);
+  };
+
   if (!isAuthenticated || !address) {
-    return null
+    return <LoadingOverlay isLoading={true} text="Checking authentication..." />
   }
 
   // Base explorer URL
@@ -63,16 +174,7 @@ export default function ProfilePage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-black">
-      <ErrorBoundary
-        fallback={
-          <nav className="flex h-14 items-center border-b border-border bg-black px-4 lg:h-[60px]">
-            <div className="flex items-center gap-0 font-mono text-xl">
-              <span className="text-primary">base</span>
-              <span className="text-foreground">.brassey.io</span>
-            </div>
-          </nav>
-        }
-      >
+      <ErrorBoundary>
         <DashboardHeader />
       </ErrorBoundary>
       <div className="flex flex-1 pt-14 lg:pt-[60px]">
@@ -100,7 +202,7 @@ export default function ProfilePage() {
             >
               {isLoggingOut ? (
                 <>
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   Logging out...
                 </>
               ) : (
@@ -112,82 +214,146 @@ export default function ProfilePage() {
             </button>
           </div>
         </aside>
-        <main className="flex flex-1 items-center justify-center p-4 md:pl-[200px] lg:pl-[240px] md:p-8">
+        <main className="flex flex-1 flex-col space-y-4 items-center justify-start p-4 md:pl-[200px] lg:pl-[240px] md:p-8">
+          <div className="flex items-center w-full max-w-3xl justify-between mb-4">
+            <h1 className="text-2xl font-bold">Profile</h1>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={refreshAllData}
+              disabled={isRefreshing}
+              className="flex items-center gap-2"
+            >
+              {isRefreshing ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Refreshing...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4" />
+                  Refresh Data
+                </>
+              )}
+            </Button>
+          </div>
+          
           <Card className="w-full max-w-lg shadow-lg">
             <CardHeader className="pb-4">
               <CardTitle className="text-2xl">Your Profile</CardTitle>
               <CardDescription>View and manage your onchain identity</CardDescription>
             </CardHeader>
             <CardContent className="space-y-8">
+              {/* Loading state */}
+              {isProfileLoading && (
+                <div className="flex justify-center my-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              )}
+
               {/* Identity Card with enhanced styling */}
-              <div className="rounded-lg border bg-card/50 p-6 shadow-sm">
-                <div className="mb-4">
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Your Identity</h3>
-                  <div className="flex items-center gap-4">
-                    <ErrorBoundary
-                      fallback={
-                        <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-                          <User className="h-8 w-8 text-primary" />
+              {!isProfileLoading && profileData && formattedAddress && (
+                <div className="rounded-lg border bg-card/50 p-6 shadow-sm">
+                  <div className="mb-4">
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2">Your Identity</h3>
+                    <div className="flex items-center gap-4">
+                      <ErrorBoundary>
+                        <BaseAvatar address={address} size="lg" />
+                      </ErrorBoundary>
+                      <div>
+                        <h2 className="text-lg font-semibold">
+                          <ErrorBoundary fallback={<span>{formatAddress(address)}</span>}>
+                            <BaseName address={address} />
+                          </ErrorBoundary>
+                        </h2>
+                        <p className="text-sm text-muted-foreground">Base Network</p>
+                        
+                        {/* Social Links Using OnchainKit Component */}
+                        <div className="mt-1">
+                          <ErrorBoundary fallback={
+                            <div className="text-sm text-muted-foreground">
+                              Social links unavailable
+                            </div>
+                          }>
+                            <div className="social-links-container" style={{ color: "#4A7E9B" }}>
+                              <style jsx global>{`
+                                /* Ensure proper styling of social links */
+                                .social-links-container > div {
+                                  display: flex !important;
+                                  gap: 8px !important;
+                                }
+                                
+                                .social-links-container a {
+                                  display: inline-flex !important;
+                                  align-items: center !important;
+                                  justify-content: center !important;
+                                }
+                                
+                                .social-links-container svg {
+                                  width: 18px !important;
+                                  height: 18px !important;
+                                  color: #4A7E9B !important;
+                                  fill: currentColor !important;
+                                  opacity: 1 !important;
+                                  visibility: visible !important;
+                                }
+                                
+                                .social-links-container path {
+                                  fill: currentColor !important;
+                                  color: #4A7E9B !important;
+                                  stroke: #4A7E9B !important;
+                                  opacity: 1 !important;
+                                  visibility: visible !important;
+                                }
+                              `}</style>
+                              <Socials 
+                                address={formattedAddress}
+                                chain={base}
+                              />
+                            </div>
+                          </ErrorBoundary>
                         </div>
-                      }
-                    >
-                      <BaseAvatar address={address} size="lg" />
-                    </ErrorBoundary>
-                    <div>
-                      <h2 className="text-lg font-semibold">
-                        <ErrorBoundary fallback={<span>{formatAddress(address)}</span>}>
-                          <BaseName address={address} />
-                        </ErrorBoundary>
-                      </h2>
-                      <p className="text-sm text-muted-foreground">Base Network</p>
-                      
-                      {/* Social Links */}
-                      <div className="mt-1">
-                        <ErrorBoundary fallback={null}>
-                          <BaseSocials 
-                            address={address} 
-                            className="flex gap-2 items-center"
-                          />
-                        </ErrorBoundary>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                {/* External links */}
-                <div className="mt-6 space-y-3 pt-4 border-t">
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">View on Explorer</h3>
-                  <Link
-                    href={`${baseExplorerUrl}/address/${address}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-primary hover:underline"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    View wallet on BaseScan
-                  </Link>
-                </div>
-              </div>
-
-              {/* Account settings section */}
-              <div className="rounded-lg border bg-card/50 p-6 shadow-sm">
-                <h3 className="text-sm font-medium text-muted-foreground mb-4">Account Settings</h3>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h4 className="font-medium">Connected Wallet</h4>
-                      <p className="text-sm text-muted-foreground truncate max-w-[250px] md:max-w-[350px]">{address}</p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => window.open(`${baseExplorerUrl}/address/${address}`, "_blank")}
+                  {/* External links */}
+                  <div className="mt-6 space-y-3 pt-4 border-t">
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2">View on Explorer</h3>
+                    <Link
+                      href={`${baseExplorerUrl}/address/${address}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-primary hover:underline"
                     >
-                      View
-                    </Button>
+                      <ExternalLink className="h-4 w-4" />
+                      View wallet on BaseScan
+                    </Link>
                   </div>
                 </div>
-              </div>
+              )}
+
+              {/* Account settings section */}
+              {!isProfileLoading && profileData && (
+                <div className="rounded-lg border bg-card/50 p-6 shadow-sm">
+                  <h3 className="text-sm font-medium text-muted-foreground mb-4">Account Settings</h3>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h4 className="font-medium">Connected Wallet</h4>
+                        <p className="text-sm text-muted-foreground truncate max-w-[250px] md:max-w-[350px]">{address}</p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(`${baseExplorerUrl}/address/${address}`, "_blank")}
+                      >
+                        View
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </CardContent>
             <CardFooter className="flex justify-end border-t pt-6">
               <Button 
@@ -198,7 +364,7 @@ export default function ProfilePage() {
               >
                 {isLoggingOut ? (
                   <>
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                     Logging out...
                   </>
                 ) : (

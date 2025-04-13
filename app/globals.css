@@ -211,3 +211,77 @@ a[href*="farcaster"],
   color: #4A7E9B;
   fill: #4A7E9B;
 }
+
+/* OnchainKit social links fixes */
+[data-enhanced-socials="true"] > div {
+  display: flex !important;
+  gap: 8px !important;
+}
+
+[data-enhanced-socials="true"] a {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 26px !important;
+  height: 26px !important;
+}
+
+[data-enhanced-socials="true"] svg {
+  width: 18px !important;
+  height: 18px !important;
+  color: #4A7E9B;
+}
+
+/* OnchainKit Socials Component Styling */
+.social-links-container > div {
+  display: flex;
+  gap: 8px;
+}
+
+.social-links-container a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.social-links-container svg {
+  width: 18px;
+  height: 18px;
+  color: #4A7E9B !important;
+  fill: currentColor !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.social-links-container path {
+  fill: currentColor !important;
+  color: #4A7E9B !important;
+  stroke: #4A7E9B !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.social-links-container a:hover {
+  opacity: 0.8;
+}
+
+/* Force visibility for all OnchainKit social links */
+[class*="onchainkit"] svg,
+[class*="onchainkit"] path,
+[class*="onchainkit"] g {
+  color: #4A7E9B !important;
+  fill: currentColor !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Ensure icons that might use stroke instead of fill are visible */
+[class*="onchainkit"] svg path,
+[class*="onchainkit"] svg circle,
+[class*="onchainkit"] svg rect {
+  stroke: #4A7E9B !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
