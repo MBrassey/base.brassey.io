@@ -87,8 +87,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     // Prevent multiple logout attempts
     if (isLoggingOut) {
+      console.log("Logout already in progress, ignoring additional request");
       return;
     }
+    
+    console.log("Starting logout process");
     
     // Mark as logging out immediately
     setIsLoggingOut(true);
@@ -102,10 +105,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("userAddress");
     
     // Add flag to prevent WalletConnect from reconnecting during page transition
-    sessionStorage.setItem("WALLET_DISCONNECT_IN_PROGRESS", "true");
-    
-    // Create a global error handler to catch WalletConnect errors during logout
     if (typeof window !== 'undefined') {
+      sessionStorage.setItem("WALLET_DISCONNECT_IN_PROGRESS", "true");
+    
+      // Create a global error handler to catch WalletConnect errors during logout
       // Intercept console errors during logout to prevent them from being displayed
       const originalConsoleError = console.error;
       console.error = function(...args) {
@@ -142,50 +145,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Ignore errors during cleanup
         }
       };
-    }
     
-    // Clear WalletConnect related storage
-    try {
-      // Clear all wallet connect related items from localStorage
-      Object.keys(localStorage).forEach(key => {
-        if (
-          key.includes('wagmi') || 
-          key.includes('wallet') || 
-          key.includes('walletconnect') || 
-          key.includes('wc@') ||
-          key.includes('connectedWallets') ||
-          key.includes('coinbase') ||
-          key.includes('brave') ||
-          key.includes('metamask')
-        ) {
-          localStorage.removeItem(key);
-        }
-      });
-      
-      // Also clear sessionStorage for WalletConnect
-      Object.keys(sessionStorage).forEach(key => {
-        if (
-          key.includes('wagmi') || 
-          key.includes('wallet') || 
-          key.includes('walletconnect') || 
-          key.includes('wc@')
-        ) {
-          sessionStorage.removeItem(key);
-        }
-      });
-    } catch (error) {
-      console.error("Error clearing wallet data:", error);
+      // Clear WalletConnect related storage
+      try {
+        console.log("Clearing wallet storage items");
+        // Clear all wallet connect related items from localStorage
+        Object.keys(localStorage).forEach(key => {
+          if (
+            key.includes('wagmi') || 
+            key.includes('wallet') || 
+            key.includes('walletconnect') || 
+            key.includes('wc@') ||
+            key.includes('connectedWallets') ||
+            key.includes('coinbase') ||
+            key.includes('brave') ||
+            key.includes('metamask')
+          ) {
+            localStorage.removeItem(key);
+          }
+        });
+        
+        // Also clear sessionStorage for WalletConnect
+        Object.keys(sessionStorage).forEach(key => {
+          if (
+            key.includes('wagmi') || 
+            key.includes('wallet') || 
+            key.includes('walletconnect') || 
+            key.includes('wc@')
+          ) {
+            sessionStorage.removeItem(key);
+          }
+        });
+      } catch (error) {
+        console.error("Error clearing wallet data:", error);
+      }
     }
     
     // Try to disconnect wallet after clearing storage
     try {
+      console.log("Calling disconnect from wagmi");
       disconnect();
     } catch (error) {
       console.error("Error during disconnect:", error);
     }
     
     // Use a special URL parameter approach to signal the logout
-    window.location.href = "/?logout=true";
+    // Add a small delay to ensure the disconnect has time to propagate
+    console.log("Scheduling redirect to home page");
+    setTimeout(() => {
+      if (typeof window !== 'undefined') {
+        console.log("Redirecting to home page with logout parameter");
+        window.location.href = "/?logout=true";
+      }
+    }, 100);
   }
 
   return (

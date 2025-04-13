@@ -5,7 +5,7 @@ import { createConfig, http } from "wagmi"
 import { base, mainnet } from "wagmi/chains"
 import { WagmiProvider } from "wagmi"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { metaMask, coinbaseWallet, walletConnect } from "wagmi/connectors"
+import { metaMask, coinbaseWallet, walletConnect, injected, safe } from "wagmi/connectors"
 import { useWalletConfig } from '@/hooks/use-wallet-config'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent } from '@/components/ui/card'
@@ -36,6 +36,12 @@ export function WalletConnectionProvider({ children }: { children: React.ReactNo
     // Only create the config if not in logout process
     if (!isDisconnectInProgress) {
       try {
+        // Create generic injected connector that will work with any browser wallet
+        const genericInjected = injected()
+
+        // Create specifically named metamask connector
+        const metamaskConnector = metaMask()
+
         const wagmiConfig = createConfig({
           chains: [mainnet, base],
           transports: {
@@ -43,7 +49,7 @@ export function WalletConnectionProvider({ children }: { children: React.ReactNo
             [base.id]: http(),
           },
           connectors: [
-            metaMask(),
+            metamaskConnector,
             coinbaseWallet({
               appName: "base.brassey.io",
               headlessMode: false,
@@ -60,6 +66,8 @@ export function WalletConnectionProvider({ children }: { children: React.ReactNo
                 icons: ["https://base.brassey.io/base-logo.svg"]
               }
             }),
+            genericInjected,
+            safe(),
           ],
         });
         
@@ -111,6 +119,8 @@ export function WalletConnectionProvider({ children }: { children: React.ReactNo
             icons: ["https://base.brassey.io/base-logo.svg"]
           }
         }),
+        injected(),
+        safe(),
       ],
     })}>
       <QueryClientProvider client={queryClient}>

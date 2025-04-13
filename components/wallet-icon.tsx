@@ -29,7 +29,7 @@ export function WalletIcon({ connectorId, name, size = 28 }: WalletIconProps) {
       return '/wallet-icons/brave-wallet.svg'
     }
     
-    if (idLower.includes('metamask') || idLower === 'injected') {
+    if (idLower.includes('metamask') || (idLower === 'injected' && nameLower.includes('metamask'))) {
       return '/wallet-icons/metamask-simple.svg'
     }
     if (idLower.includes('coinbase')) {
@@ -38,8 +38,15 @@ export function WalletIcon({ connectorId, name, size = 28 }: WalletIconProps) {
     if (idLower.includes('walletconnect')) {
       return '/wallet-icons/walletconnect.svg'
     }
-    if (idLower.includes('phantom')) {
+    if (idLower.includes('safe') || nameLower.includes('safe') || nameLower.includes('gnosis')) {
+      return '/wallet-icons/safe-wallet.svg'
+    }
+    if (idLower.includes('phantom') || nameLower.includes('phantom')) {
       return '/wallet-icons/phantom-simple.svg'
+    }
+    // Generic browser extension (will catch any other injected providers)
+    if (idLower === 'injected') {
+      return '/wallet-icons/browser-wallet.svg'
     }
     
     return ''

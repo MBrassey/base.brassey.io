@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { LogOut, Menu, Settings, User } from "lucide-react"
+import { LogOut, Menu, Settings, User, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -20,12 +20,11 @@ import { SafeAvatar, SafeName } from "./onchain-components"
 
 export function CustomHeader() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { address, logout } = useAuth()
+  const { address, logout, isLoggingOut } = useAuth()
   const router = useRouter()
 
   const handleLogout = () => {
     logout()
-    router.push("/")
   }
 
   return (
@@ -63,10 +62,20 @@ export function CustomHeader() {
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-red-500 text-left"
+                  disabled={isLoggingOut}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-red-500 text-left disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <LogOut className="h-4 w-4" />
-                  Logout
+                  {isLoggingOut ? (
+                    <>
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
+                      Logging out...
+                    </>
+                  ) : (
+                    <>
+                      <LogOut className="h-4 w-4" />
+                      Logout
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -114,9 +123,22 @@ export function CustomHeader() {
                   <span>Settings</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoggingOut ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <span>Logging out...</span>
+                    </>
+                  ) : (
+                    <>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Log out</span>
+                    </>
+                  )}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
