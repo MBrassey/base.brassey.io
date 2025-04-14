@@ -23,7 +23,19 @@ export function NFTGallery() {
   // Force refetch on mount
   useEffect(() => {
     if (address) {
+      // First immediate refetch
       refetch()
+      
+      // Staggered refetches to ensure data loads properly
+      const timeouts = [500, 1500, 3000].map(delay => 
+        setTimeout(() => {
+          refetch()
+        }, delay)
+      )
+      
+      return () => {
+        timeouts.forEach(timeout => clearTimeout(timeout))
+      }
     }
   }, [address, refetch])
 

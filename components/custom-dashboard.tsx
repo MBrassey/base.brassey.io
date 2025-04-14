@@ -30,10 +30,23 @@ export function CustomDashboard() {
   // Force data loading on mount
   useEffect(() => {
     if (address) {
-      // Invalidate queries to force fresh data
+      // Immediate invalidation on mount
       queryClient.invalidateQueries({ queryKey: ["tokens"] })
       queryClient.invalidateQueries({ queryKey: ["nfts"] })
       queryClient.invalidateQueries({ queryKey: ["blockHeight"] })
+      
+      // Staggered invalidations to ensure data loads properly
+      const timeouts = [800, 2000, 5000].map(delay => 
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ["tokens"] })
+          queryClient.invalidateQueries({ queryKey: ["nfts"] })
+          queryClient.invalidateQueries({ queryKey: ["blockHeight"] })
+        }, delay)
+      )
+      
+      return () => {
+        timeouts.forEach(timeout => clearTimeout(timeout))
+      }
     }
   }, [address, queryClient])
 

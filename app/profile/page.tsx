@@ -54,7 +54,7 @@ export default function ProfilePage() {
       queryClient.invalidateQueries({ queryKey: ["profile"] })
       
       // Stagger the data loading with several retries
-      const loadTimes = [100, 800, 2000];
+      const loadTimes = [100, 800, 2000, 4000]; // Added an additional retry
       const timeouts = loadTimes.map(time => 
         setTimeout(() => {
           queryClient.invalidateQueries({ queryKey: ["profile"] })
@@ -199,7 +199,7 @@ export default function ProfilePage() {
             </button>
           </div>
         </aside>
-        <main className="flex flex-1 flex-col space-y-4 items-center justify-start p-4 md:pl-[200px] lg:pl-[240px] md:p-8">
+        <main className="flex flex-1 flex-col space-y-4 items-center justify-start p-4 md:pl-[200px] lg:pl-[240px] md:p-8 mt-6">
           <div className="flex items-center w-full max-w-3xl justify-between mb-4">
             <h1 className="text-2xl font-bold">Profile</h1>
           </div>
@@ -212,8 +212,9 @@ export default function ProfilePage() {
             <CardContent className="space-y-8">
               {/* Loading state */}
               {isProfileLoading && (
-                <div className="flex justify-center my-8">
+                <div className="flex flex-col items-center justify-center my-8 space-y-2">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="text-sm text-muted-foreground">Loading profile data...</p>
                 </div>
               )}
 
@@ -317,6 +318,28 @@ export default function ProfilePage() {
                         View
                       </Button>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Fallback when data is not loaded properly */}
+              {!isProfileLoading && (!profileData || !formattedAddress) && (
+                <div className="rounded-lg border border-red-300 bg-red-50/10 p-6 shadow-sm">
+                  <div className="flex flex-col items-center justify-center text-center space-y-3">
+                    <RefreshCw className="h-8 w-8 text-muted-foreground" />
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-medium">Profile data unavailable</h3>
+                      <p className="text-sm text-muted-foreground">Unable to load profile data. Try refreshing the page.</p>
+                    </div>
+                    <Button 
+                      onClick={() => {
+                        queryClient.invalidateQueries({ queryKey: ["profile"] });
+                        window.location.reload();
+                      }}
+                      className="mt-2"
+                    >
+                      Refresh
+                    </Button>
                   </div>
                 </div>
               )}

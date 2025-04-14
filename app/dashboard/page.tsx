@@ -23,7 +23,7 @@ export default function DashboardPage() {
       // Simulate loading state for better UX
       const timeout = setTimeout(() => {
         setIsLoading(false)
-      }, 1000)
+      }, 2000)
 
       return () => clearTimeout(timeout)
     }

@@ -57,10 +57,13 @@ export function useNFTs() {
     enabled: !!address,
     // Keep data fresh for 2 minutes, then consider it stale
     staleTime: 2 * 60 * 1000,
-    // Don't refetch on mount, only when address changes or manually triggered
-    refetchOnMount: false,
+    // Always refetch on mount to ensure data is fresh
+    refetchOnMount: true,
     // Refetch when coming back to the app
     refetchOnWindowFocus: true,
+    // Add retry options
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * (1.5 ** attemptIndex), 10000),
   })
   
   // Process the NFTs to add the isBasename flag

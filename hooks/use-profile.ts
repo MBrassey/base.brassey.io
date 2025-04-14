@@ -19,6 +19,9 @@ export function useProfile() {
         ? address
         : `0x${address}`
 
+      // Add a small delay to ensure data is ready
+      await new Promise(resolve => setTimeout(resolve, 300));
+
       // For now, this is just a placeholder for future profile data fetching
       // You could expand this to fetch additional profile data from an API
       return {
@@ -34,5 +37,6 @@ export function useProfile() {
     retryDelay: (attemptIndex) => Math.min(1000 * (1.5 ** attemptIndex), 10000), // Less aggressive exponential backoff
     refetchOnMount: true, // Always refetch on mount
     refetchOnWindowFocus: true, // Always refetch on window focus
+    refetchInterval: 60 * 1000, // Refresh every minute
   })
 } 
