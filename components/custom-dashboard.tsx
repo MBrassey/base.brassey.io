@@ -20,40 +20,80 @@ import { RefreshCw } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 
 export function CustomDashboard() {
-  const [isMounted, setIsMounted] = useState(true) // Set to true by default for client components
+  const [isMounted, setIsMounted] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const { address, logout } = useAuth()
   const router = useRouter()
-  const pathname = usePathname() // Get current path
+  const pathname = usePathname()
   const { data: blockHeightData, isLoading: isBlockHeightLoading, error: blockHeightError, refetch: refetchBlockHeight } = useBlockHeight()
   const queryClient = useQueryClient()
 
-  // Force data loading on mount
+  // Handle mounting state
   useEffect(() => {
-    if (address) {
-      // Immediate invalidation on mount
+    setIsMounted(true)
+    // Add a small delay before setting loading to false to ensure data is ready
+    const timeout = setTimeout(() => {
+      setIsLoading(false)
+    }, 2000) // Increased delay to match DashboardPage
+    return () => clearTimeout(timeout)
+  }, [])
+
+  // Force data loading on mount and handle authentication
+  useEffect(() => {
+    if (!isMounted) return
+    
+    if (!address) {
+      router.push('/')
+      return
+    }
+
+    // Clear existing data first to force a fresh load
+    queryClient.removeQueries({ queryKey: ["tokens"] });
+    queryClient.removeQueries({ queryKey: ["nfts"] });
+    queryClient.removeQueries({ queryKey: ["blockHeight"] });
+
+    // Immediate invalidation
+    const invalidateQueries = () => {
       queryClient.invalidateQueries({ queryKey: ["tokens"] })
       queryClient.invalidateQueries({ queryKey: ["nfts"] })
       queryClient.invalidateQueries({ queryKey: ["blockHeight"] })
-      
-      // Staggered invalidations to ensure data loads properly
-      const timeouts = [800, 2000, 5000].map(delay => 
-        setTimeout(() => {
-          queryClient.invalidateQueries({ queryKey: ["tokens"] })
-          queryClient.invalidateQueries({ queryKey: ["nfts"] })
-          queryClient.invalidateQueries({ queryKey: ["blockHeight"] })
-        }, delay)
-      )
-      
-      return () => {
-        timeouts.forEach(timeout => clearTimeout(timeout))
-      }
     }
-  }, [address, queryClient])
 
-  useEffect(() => {
-    // Initial mount
-    setIsMounted(true)
-  }, [])
+    // Execute immediate invalidation
+    invalidateQueries()
+    
+    // Staggered invalidations to ensure data loads properly
+    const timeouts = [800, 2000, 5000].map(delay => 
+      setTimeout(() => {
+        if (address) {  // Only refetch if still authenticated
+          invalidateQueries()
+        }
+      }, delay)
+    )
+    
+    return () => {
+      timeouts.forEach(timeout => clearTimeout(timeout))
+    }
+  }, [address, queryClient, router, isMounted])
+
+  // Show loading state
+  if (!isMounted || isLoading) {
+    return (
+      <div className="flex min-h-screen w-full flex-col bg-black">
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="flex flex-col items-center gap-4">
+            <Spinner className="h-8 w-8" />
+            <p className="text-muted-foreground">Loading dashboard...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Don't render anything if not authenticated
+  if (!address) {
+    return null
+  }
 
   const handleLogout = () => {
     logout()

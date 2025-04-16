@@ -10,8 +10,27 @@ import { useWalletConfig } from '@/hooks/use-wallet-config'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent } from '@/components/ui/card'
 
-// Create a client for react-query
-const queryClient = new QueryClient()
+// Create a client for react-query with better persistence options
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Keep data fresh for 30 seconds
+      staleTime: 30 * 1000,
+      // Cache data for 5 minutes
+      gcTime: 5 * 60 * 1000,
+      // Always refetch on mount to ensure fresh data
+      refetchOnMount: true,
+      // Refetch when coming back to the app
+      refetchOnWindowFocus: true,
+      // Add retry options
+      retry: 5,
+      retryDelay: (attemptIndex) => Math.min(1000 * (1.5 ** attemptIndex), 30000),
+      // Keep refetching in background
+      refetchInterval: 30000,
+      refetchIntervalInBackground: true,
+    },
+  },
+})
 
 // Check if we're in the browser and if a disconnect is in progress
 const isDisconnectInProgress = 
@@ -27,6 +46,11 @@ export function WalletConnectionProvider({ children }: { children: React.ReactNo
   const [config, setConfig] = useState<ReturnType<typeof createConfig> | null>(null)
 
   useEffect(() => {
+    // Clear any disconnect flags that might have persisted
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.removeItem('WALLET_DISCONNECT_IN_PROGRESS');
+    }
+
     // Ensure window.global is defined for wallet connectors
     if (typeof window !== 'undefined') {
       window.process = window.process || { env: {} };

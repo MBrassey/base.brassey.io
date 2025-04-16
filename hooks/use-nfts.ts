@@ -36,7 +36,7 @@ const BASENAME_CONTRACT_ADDRESSES = [
 export function useNFTs() {
   const { address } = useAccount()
 
-  const query = useQuery<NftsResponse>({
+  const query = useQuery({
     queryKey: ["nfts", address],
     queryFn: async () => {
       if (!address) {
@@ -53,17 +53,22 @@ export function useNFTs() {
 
       return response.json()
     },
-    // Enable the query only when we have an address
     enabled: !!address,
-    // Keep data fresh for 2 minutes, then consider it stale
-    staleTime: 2 * 60 * 1000,
-    // Always refetch on mount to ensure data is fresh
-    refetchOnMount: true,
+    // Keep data fresh for 30 seconds
+    staleTime: 30 * 1000,
+    // Cache data for 5 minutes
+    gcTime: 5 * 60 * 1000,
+    // Always refetch on mount
+    refetchOnMount: 'always',
     // Refetch when coming back to the app
     refetchOnWindowFocus: true,
     // Add retry options
-    retry: 3,
-    retryDelay: (attemptIndex) => Math.min(1000 * (1.5 ** attemptIndex), 10000),
+    retry: 5,
+    retryDelay: (attemptIndex) => Math.min(1000 * (1.5 ** attemptIndex), 30000),
+    // Add refetch interval
+    refetchInterval: 30000,
+    // Keep refetching in background
+    refetchIntervalInBackground: true,
   })
   
   // Process the NFTs to add the isBasename flag

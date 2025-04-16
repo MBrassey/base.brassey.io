@@ -12,6 +12,7 @@ type AuthContextType = {
   login: (address: string) => void
   logout: () => void
   isLoggingOut: boolean
+  isInitialized: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -22,6 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [basename, setBasename] = useState<string | null>(null)
   const [isMounted, setIsMounted] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [isInitialized, setIsInitialized] = useState(false)
   const logoutTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const { address: connectedAddress, isConnected } = useAccount()
   const { disconnect } = useDisconnect()
@@ -33,17 +35,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     chainId: base.id,
   })
 
-  // Set isMounted to true after component mounts
+  // Set isMounted to true after component mounts and handle initial auth state
   useEffect(() => {
     setIsMounted(true)
+    
+    // Check localStorage for saved address
+    const savedAddress = localStorage.getItem("userAddress")
+    if (savedAddress) {
+      setIsAuthenticated(true)
+      setAddress(savedAddress)
+    }
+    
+    // Mark as initialized after initial auth check
+    setIsInitialized(true)
     
     // Clear any logout timeout on unmount
     return () => {
       if (logoutTimeoutRef.current) {
-        clearTimeout(logoutTimeoutRef.current);
+        clearTimeout(logoutTimeoutRef.current)
       }
-    };
+    }
   }, [])
+
+  // Update authentication state when wallet connection changes
+  useEffect(() => {
+    if (isConnected && connectedAddress) {
+      setIsAuthenticated(true)
+      setAddress(connectedAddress)
+      localStorage.setItem("userAddress", connectedAddress)
+    } else if (!isConnected && !isLoggingOut && isInitialized) {
+      // Only clear auth state if not in the process of logging out and initialization is complete
+      const savedAddress = localStorage.getItem("userAddress")
+      if (!savedAddress) {
+        setIsAuthenticated(false)
+        setAddress(null)
+      }
+    }
+  }, [isConnected, connectedAddress, isLoggingOut, isInitialized])
 
   // Update basename when ENS name changes
   useEffect(() => {
@@ -59,24 +87,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     // This effect deals with the ENS fetching being delayed until mounted
   }, [isMounted, address])
-
-  // Update authentication state when wallet connection changes
-  useEffect(() => {
-    if (isConnected && connectedAddress) {
-      setIsAuthenticated(true)
-      setAddress(connectedAddress)
-      localStorage.setItem("userAddress", connectedAddress)
-    }
-  }, [isConnected, connectedAddress])
-
-  // Check if user is already authenticated on mount
-  useEffect(() => {
-    const savedAddress = localStorage.getItem("userAddress")
-    if (savedAddress) {
-      setIsAuthenticated(true)
-      setAddress(savedAddress)
-    }
-  }, [])
 
   const login = (address: string) => {
     setIsAuthenticated(true)
@@ -201,7 +211,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, address, basename, login, logout, isLoggingOut }}>
+    <AuthContext.Provider value={{ 
+      isAuthenticated, 
+      address, 
+      basename, 
+      login, 
+      logout, 
+      isLoggingOut,
+      isInitialized 
+    }}>
       {children}
     </AuthContext.Provider>
   )

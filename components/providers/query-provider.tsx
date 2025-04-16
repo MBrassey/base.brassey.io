@@ -10,12 +10,23 @@ export function QueryProvider({ children }: { children: ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            // Don't retry failed queries by default
-            retry: false,
-            // Keep data fresh for 2 minutes
-            staleTime: 2 * 60 * 1000,
+            // Retry up to 5 times with exponential backoff
+            retry: 5,
+            retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+            // Keep data fresh for 30 seconds
+            staleTime: 30 * 1000,
+            // Cache data for 5 minutes
+            gcTime: 5 * 60 * 1000,
             // Refetch data when window regains focus
             refetchOnWindowFocus: true,
+            // Refetch on mount
+            refetchOnMount: 'always',
+            // Refetch when reconnecting
+            refetchOnReconnect: true,
+            // Refetch interval
+            refetchInterval: 30000,
+            // Don't pause refetching when the window is hidden
+            refetchIntervalInBackground: true,
           },
         },
       })

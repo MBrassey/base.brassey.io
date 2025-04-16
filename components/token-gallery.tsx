@@ -37,7 +37,7 @@ export function TokenGallery() {
   const { data, isLoading, isError, error, refetch } = useTokens()
   const tokens = data?.tokens || []
 
-  // Force refetch on mount
+  // Force refetch on mount and handle reconnection
   useEffect(() => {
     if (address) {
       // First immediate refetch
@@ -46,13 +46,37 @@ export function TokenGallery() {
       // Staggered refetches to ensure data loads properly
       const timeouts = [500, 1500, 3000].map(delay => 
         setTimeout(() => {
-          refetch()
+          if (address) {  // Only refetch if still connected
+            refetch()
+          }
         }, delay)
       )
       
+      // Set up periodic refresh
+      const refreshInterval = setInterval(() => {
+        if (address) {
+          refetch()
+        }
+      }, 30000) // Refresh every 30 seconds
+      
       return () => {
         timeouts.forEach(timeout => clearTimeout(timeout))
+        clearInterval(refreshInterval)
       }
+    }
+  }, [address, refetch])
+
+  // Add event listener for visibility changes
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && address) {
+        refetch()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [address, refetch])
 
