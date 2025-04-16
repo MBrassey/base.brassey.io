@@ -94,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("userAddress", address)
   }
 
-  const logout = () => {
+  const logout = async () => {
     // Prevent multiple logout attempts
     if (isLoggingOut) {
       console.log("Logout already in progress, ignoring additional request");
@@ -105,61 +105,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     // Mark as logging out immediately
     setIsLoggingOut(true);
-    
-    // Clear local state first
-    setIsAuthenticated(false);
-    setAddress(null);
-    setBasename(null);
-    
-    // Clear all localStorage items related to wallets and authentication
-    localStorage.removeItem("userAddress");
-    
-    // Add flag to prevent WalletConnect from reconnecting during page transition
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem("WALLET_DISCONNECT_IN_PROGRESS", "true");
-    
-      // Create a global error handler to catch WalletConnect errors during logout
-      // Intercept console errors during logout to prevent them from being displayed
-      const originalConsoleError = console.error;
-      console.error = function(...args) {
-        // Suppress WalletConnect errors during logout
-        if (
-          args[0] && 
-          (String(args[0]).includes('walletconnect') || 
-           String(args[0]).includes('WalletConnect'))
-        ) {
-          return; // Don't log WalletConnect errors
-        }
-        return originalConsoleError.apply(console, args);
-      };
+
+    try {
+      // First disconnect the wallet
+      console.log("Calling disconnect from wagmi");
+      await disconnect();
       
-      // Add a beforeunload handler to prevent reconnection during page navigation
-      window.onbeforeunload = function() {
-        // This will be executed right before the page is unloaded
-        // Set a flag that will persist through the refresh
+      // Then clear all storage
+      if (typeof window !== 'undefined') {
+        console.log("Clearing storage items");
+        
+        // Clear auth-related items first
+        localStorage.removeItem("userAddress");
         sessionStorage.setItem("WALLET_DISCONNECT_IN_PROGRESS", "true");
         
-        // Clean up storage one final time
-        try {
-          Object.keys(localStorage).forEach(key => {
-            if (
-              key.includes('wagmi') || 
-              key.includes('wallet') || 
-              key.includes('walletconnect') || 
-              key.includes('wc@')
-            ) {
-              localStorage.removeItem(key);
-            }
-          });
-        } catch (e) {
-          // Ignore errors during cleanup
-        }
-      };
-    
-      // Clear WalletConnect related storage
-      try {
-        console.log("Clearing wallet storage items");
-        // Clear all wallet connect related items from localStorage
+        // Clear wallet-related items from localStorage
         Object.keys(localStorage).forEach(key => {
           if (
             key.includes('wagmi') || 
@@ -175,7 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         });
         
-        // Also clear sessionStorage for WalletConnect
+        // Clear wallet-related items from sessionStorage
         Object.keys(sessionStorage).forEach(key => {
           if (
             key.includes('wagmi') || 
@@ -186,28 +146,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             sessionStorage.removeItem(key);
           }
         });
-      } catch (error) {
-        console.error("Error clearing wallet data:", error);
       }
-    }
-    
-    // Try to disconnect wallet after clearing storage
-    try {
-      console.log("Calling disconnect from wagmi");
-      disconnect();
+      
+      // Clear any pending timeouts
+      if (logoutTimeoutRef.current) {
+        clearTimeout(logoutTimeoutRef.current);
+        logoutTimeoutRef.current = null;
+      }
+      
+      // Clear local state
+      setIsAuthenticated(false);
+      setAddress(null);
+      setBasename(null);
+      
+      // Use router for navigation if available, fallback to location
+      if (router) {
+        router.push('/');
+      } else if (typeof window !== 'undefined') {
+        window.location.href = '/';
+      }
     } catch (error) {
-      console.error("Error during disconnect:", error);
-    }
-    
-    // Use a special URL parameter approach to signal the logout
-    // Add a small delay to ensure the disconnect has time to propagate
-    console.log("Scheduling redirect to home page");
-    setTimeout(() => {
-      if (typeof window !== 'undefined') {
-        console.log("Redirecting to home page with logout parameter");
-        window.location.href = "/?logout=true";
+      console.error("Error during logout:", error);
+      // Even if there's an error, try to force logout
+      setIsAuthenticated(false);
+      setAddress(null);
+      setBasename(null);
+      
+      // Force navigation to login
+      if (router) {
+        router.push('/');
+      } else if (typeof window !== 'undefined') {
+        window.location.href = '/';
       }
-    }, 100);
+    } finally {
+      // Reset logging out state
+      setIsLoggingOut(false);
+    }
   }
 
   return (

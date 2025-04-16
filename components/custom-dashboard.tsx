@@ -22,6 +22,7 @@ import { useQueryClient } from "@tanstack/react-query"
 export function CustomDashboard() {
   const [isMounted, setIsMounted] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
   const { address, logout } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
@@ -40,7 +41,7 @@ export function CustomDashboard() {
 
   // Force data loading on mount and handle authentication
   useEffect(() => {
-    if (!isMounted) return
+    if (!isMounted || isLoggingOut) return
     
     if (!address) {
       router.push('/')
@@ -74,16 +75,34 @@ export function CustomDashboard() {
     return () => {
       timeouts.forEach(timeout => clearTimeout(timeout))
     }
-  }, [address, queryClient, router, isMounted])
+  }, [address, queryClient, router, isMounted, isLoggingOut])
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true)
+    try {
+      // Clear all queries before logout
+      queryClient.clear()
+      // Remove any pending query retries
+      queryClient.cancelQueries()
+      // Perform logout
+      await logout()
+    } catch (error) {
+      console.error("Error during logout:", error)
+      // Force navigation to login even if logout fails
+      router.push('/')
+    }
+  }
 
   // Show loading state
-  if (!isMounted || isLoading) {
+  if (!isMounted || isLoading || isLoggingOut) {
     return (
       <div className="flex min-h-screen w-full flex-col bg-black">
         <div className="flex items-center justify-center min-h-screen">
           <div className="flex flex-col items-center gap-4">
             <Spinner className="h-8 w-8" />
-            <p className="text-muted-foreground">Loading dashboard...</p>
+            <p className="text-muted-foreground">
+              {isLoggingOut ? "Logging out..." : "Loading dashboard..."}
+            </p>
           </div>
         </div>
       </div>
@@ -93,10 +112,6 @@ export function CustomDashboard() {
   // Don't render anything if not authenticated
   if (!address) {
     return null
-  }
-
-  const handleLogout = () => {
-    logout()
   }
 
   return (
