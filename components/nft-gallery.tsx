@@ -68,9 +68,9 @@ export function NFTGallery() {
   }
 
   // Debug any Basename NFTs to console
-  const basenameNfts = nfts.filter(nft => nft.isBasename === true);
+  const basenameNfts = nfts.filter((nft: ExtendedNft) => nft.isBasename === true);
   
-  console.log("Found Basename NFTs:", basenameNfts.map(nft => ({
+  console.log("Found Basename NFTs:", basenameNfts.map((nft: ExtendedNft) => ({
     address: nft.contract.address,
     name: nft.name || nft.raw?.metadata?.name || "No name",
     tokenId: nft.tokenId || "No ID",
@@ -128,35 +128,30 @@ export function NFTGallery() {
     }
     
     // Special case NFTs should always be shown
-    if (
-      (nft.contract.address.toLowerCase() === CHART_CONTRACT_ADDRESS.toLowerCase()) ||
-      (nft.contract.name === "Basenames") || 
-      (nft.contract.name?.toLowerCase()?.includes("basename")) ||
-      (nft.raw?.metadata?.name?.toLowerCase()?.includes("basename")) ||
-      // Check contract address against common Basename contract addresses
-      (nft.contract.address.toLowerCase() === "0xd4416b13d2b3a9abae7acd5d6c2bbdbe25686401") || // Base Mainnet
-      (nft.contract.address.toLowerCase() === "0x4def3d3b162e5585e5769ef959ff1a444b8e9f26")    // Base Sepolia
-    ) {
+    if (nft.contract.address.toLowerCase() === CHART_CONTRACT_ADDRESS.toLowerCase()) {
       return true;
     }
     
-    // Has a proper name
-    const hasName = nft.name || nft.raw?.metadata?.name || nft.title || nft.metadata?.name;
-    
-    // Has a proper description
-    const hasDescription = nft.description || nft.raw?.metadata?.description || nft.metadata?.description;
-    
-    // Show only if it has either a name or description
-    return hasName || hasDescription;
+    // Show NFT if it has any identifying information
+    return !!(
+      nft.name || 
+      nft.raw?.metadata?.name || 
+      nft.title || 
+      nft.metadata?.name ||
+      nft.tokenId ||
+      nft.contract?.name
+    );
   });
   
-  // Deduplicate NFTs by contract address and tokenId to prevent duplicates
+  // Deduplicate NFTs only if they have the exact same contract address AND token ID
   const dedupedNfts: ExtendedNft[] = [];
   const seen = new Set<string>();
   
-  filteredNfts.forEach(nft => {
+  filteredNfts.forEach((nft: ExtendedNft) => {
     // Create a unique identifier from contract address and tokenId
-    const nftKey = `${nft.contract.address.toLowerCase()}-${nft.tokenId || 'unknown'}`;
+    // Only use tokenId if it exists, otherwise use a random value to ensure uniqueness
+    const tokenIdPart = nft.tokenId || Math.random().toString(36).substring(2);
+    const nftKey = `${nft.contract.address.toLowerCase()}-${tokenIdPart}`;
     
     // If we haven't seen this NFT before, add it to the deduplicated list
     if (!seen.has(nftKey)) {
@@ -168,238 +163,261 @@ export function NFTGallery() {
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>NFT Gallery</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {dedupedNfts.length === 0 ? (
-          <p className="text-muted-foreground">No NFTs found</p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {dedupedNfts.map((nft: ExtendedNft) => {
-              // Check if this is a chart NFT
-              const isChartNFT = nft.contract.address.toLowerCase() === CHART_CONTRACT_ADDRESS.toLowerCase()
-              
-              // Use the isBasename flag from the hook instead of checking again
-              const isBasenameNFT = nft.isBasename === true;
-              
-              // For chart NFTs, use the specific preview URL and ensure it's interactive
-              if (isChartNFT) {
-                // Create a truly unique key for this Chart NFT
-                const uniqueKey = `chart-${nft.contract.address}-${nft.tokenId || 'id'}-${Math.random().toString(36).substring(2, 9)}`;
-                
-                return (
-                  <div
-                    key={uniqueKey}
-                    className="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
-                  >
-                    <div className="w-full h-48 relative bg-white overflow-hidden">
-                      <iframe
-                        src={CHART_PREVIEW_URL}
-                        className="absolute inset-0 w-full h-full border-0"
-                        sandbox="allow-scripts allow-same-origin"
-                        title="Interactive Chart"
-                      />
-                    </div>
-                    <div className="p-4">
-                      <h3 className="font-semibold truncate">
-                        {nft.name || "Interactive Chart"}
-                      </h3>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {nft.description || "Dynamic visualization"}
-                      </p>
-                      {nft.contract.name && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {nft.contract.name}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )
-              }
-              
-              // For Basename NFTs, use the Base logo and proper metadata
-              if (isBasenameNFT) {
-                // Extract the basename info - try multiple data sources
-                const basenameFull = 
-                  nft.name || 
-                  nft.raw?.metadata?.name || 
-                  nft.title || 
-                  nft.raw?.metadata?.title ||
-                  null;
-                
-                // Try to extract a clean name
-                let basenameClean = basenameFull;
-                if (basenameFull && typeof basenameFull === 'string') {
-                  // If it contains .base, just use that as the name
-                  if (basenameFull.includes('.base')) {
-                    basenameClean = basenameFull;
-                  } 
-                  // If it's in the format "Basename: something.base", extract the something.base part
-                  else if (basenameFull.includes('Basename:')) {
-                    const match = basenameFull.match(/Basename:\s*(.+)/i);
-                    if (match && match[1]) {
-                      basenameClean = match[1].trim();
-                    }
-                  }
-                }
-                
-                // GUARANTEED display name that will never be undefined
-                const displayName = basenameClean || 
-                  (nft.tokenId ? `Basename #${nft.tokenId}` : "Basename");
-                
-                // Create a truly unique key for this NFT
-                const uniqueKey = `basename-${nft.contract.address}-${nft.tokenId || 'id'}-${Math.random().toString(36).substring(2, 9)}`;
-                
-                return (
-                  <div
-                    key={uniqueKey}
-                    className="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
-                  >
-                    <div className="w-full h-48 relative flex items-center justify-center bg-white">
-                      <div className="w-32 h-32 relative">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2500 2500" className="w-full h-full">
-                          <path 
-                            fill="#0052FF" 
-                            d="M1247.8,2500c691.6,0,1252.2-559.6,1252.2-1250C2500,559.6,1939.4,0,1247.8,0C591.7,0,53.5,503.8,0,1144.9h1655.1v210.2H0C53.5,1996.2,591.7,2500,1247.8,2500z"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                    <div className="p-4">
-                      <h3 className="font-semibold truncate">
-                        {displayName}
-                      </h3>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {nft.description || nft.raw?.metadata?.description || "Base Name Service"}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Basenames
-                      </p>
-                    </div>
-                  </div>
-                )
-              }
-              
-              // For non-chart NFTs, use the normal rendering logic
-              const isSvg = 
-                nft.media?.[0]?.gateway?.endsWith('.svg') || 
-                nft.media?.[0]?.raw?.endsWith('.svg') ||
-                nft.image?.originalUrl?.endsWith('.svg') || 
-                nft.image?.cachedUrl?.endsWith('.svg') ||
-                nft.raw?.metadata?.image?.endsWith('.svg') ||
-                nft.raw?.metadata?.animation_url?.endsWith('.svg')
-              
-              const isInteractiveWeb = 
-                nft.media?.[0]?.gateway?.includes('?') || 
-                nft.media?.[0]?.raw?.includes('?') ||
-                nft.image?.originalUrl?.includes('?') ||
-                nft.image?.cachedUrl?.includes('?') ||
-                nft.raw?.metadata?.image?.includes('?') ||
-                nft.raw?.metadata?.animation_url?.includes('?')
-              
-              // Try to find the best image URL from multiple possible sources
-              const imageUrl = 
-                // First check the media array (from the updated API)
-                nft.media?.[0]?.gateway || 
-                nft.media?.[0]?.raw || 
-                // Then try the image object
-                nft.image?.cachedUrl || 
-                nft.image?.originalUrl || 
-                // Then try the metadata (sometimes in different locations)
-                nft.raw?.metadata?.image ||
-                nft.raw?.metadata?.animation_url ||
-                nft.metadata?.image ||
-                // Fallback to title as text if available
-                (nft.title ? null : "/placeholder.svg")
-              
-              // Display actual NFT title from multiple possible sources
-              const nftTitle = isBasenameNFT 
-                ? (nft.name || nft.raw?.metadata?.name || "Basename") 
-                : (nft.title || nft.name || nft.metadata?.name || nft.raw?.metadata?.name || `NFT #${nft.tokenId}`)
-              
-              // Get description from multiple possible sources
-              const nftDescription = 
-                isBasenameNFT
-                  ? (nft.description || nft.metadata?.description || nft.raw?.metadata?.description || "Base Name Service")
-                  : (nft.description || nft.metadata?.description || nft.raw?.metadata?.description || nft.contract?.name || "No description")
-              
-              // Create a truly unique key for this NFT
-              const uniqueKey = `nft-${nft.contract?.address || 'unknown'}-${nft.tokenId || 'id'}-${Math.random().toString(36).substring(2, 9)}`;
+    <div className="space-y-6">
+      {dedupedNfts.length === 0 ? (
+        <p className="text-muted-foreground">No NFTs found</p>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {dedupedNfts.map((nft: ExtendedNft) => {
+            // Check if this is a chart NFT
+            const isChartNFT = nft.contract.address.toLowerCase() === CHART_CONTRACT_ADDRESS.toLowerCase()
+            
+            // For chart NFTs, use the specific preview URL and ensure it's interactive
+            if (isChartNFT) {
+              const uniqueKey = `chart-${nft.contract.address}-${nft.tokenId || 'id'}-${Math.random().toString(36).substring(2, 9)}`;
+              const chartTitle = nft.raw?.metadata?.name || nft.name || nft.title || "$PKRM-FKZ";
+              const chartDescription = nft.raw?.metadata?.description || nft.description || "charts by jvmi";
               
               return (
                 <div
                   key={uniqueKey}
-                  className="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
+                  className="bg-[#111111] rounded-xl overflow-hidden border border-[#303339] hover:shadow-lg transition-all duration-300"
                 >
-                  <div className="w-full h-48 relative">
-                    {!imageUrl ? (
-                      // Text-based fallback for NFTs without images
-                      <div 
-                        className="w-full h-48 flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/10 overflow-hidden p-4 text-center"
-                      >
-                        <div>
-                          <h3 className="text-lg font-bold text-primary">{nftTitle}</h3>
-                          <p className="text-xs text-muted-foreground mt-2">
-                            {nft.contract?.name || (isBasenameNFT ? "Basenames" : "Unknown Collection")}
-                          </p>
-                          <div className="mt-3 text-xs px-2 py-1 bg-primary/20 rounded-full inline-block">
-                            {isBasenameNFT 
-                              ? "Basename" 
-                              : `#${nft.tokenId || "??"}`}
-                          </div>
-                        </div>
-                      </div>
-                    ) : (isSvg || isInteractiveWeb) ? (
-                      <div className="w-full h-full flex items-center justify-center bg-white overflow-hidden">
-                        <iframe
-                          src={imageUrl}
-                          className="w-full h-full"
-                          sandbox="allow-scripts allow-same-origin"
-                          title={nftTitle}
-                          style={{ 
-                            width: '100%', 
-                            height: '100%', 
-                            objectFit: 'contain', 
-                            display: 'block',
-                            margin: '0 auto'
-                          }}
-                        />
-                      </div>
-                    ) : (
-                      <img
-                        src={imageUrl}
-                        alt={nftTitle}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          console.error("Error loading image:", imageUrl)
-                          // Fall back to displaying a placeholder
-                          const imgElement = e.target as HTMLImageElement;
-                          imgElement.src = "/placeholder.svg";
+                  <div className="aspect-square relative bg-[#111111] overflow-hidden">
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <iframe
+                        src={CHART_PREVIEW_URL}
+                        className="absolute inset-0 w-full h-full scale-[1.15]"
+                        sandbox="allow-scripts allow-same-origin"
+                        title={chartTitle}
+                        style={{
+                          border: 'none',
+                          pointerEvents: 'none',
+                          transformOrigin: 'center center'
                         }}
                       />
-                    )}
+                    </div>
                   </div>
-                  <div className="p-4">
-                    <h3 className="font-semibold truncate">
-                      {nftTitle}
-                    </h3>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {nftDescription}
-                    </p>
-                    {nft.contract?.name && nft.contract.name !== "Basenames" && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {nft.contract.name}
-                      </p>
+                  <div className="p-3">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="truncate">
+                        <h3 className="text-sm font-semibold text-white truncate">
+                          {chartTitle}
+                        </h3>
+                        <p className="text-sm text-[#8A939B] truncate">
+                          {chartDescription}
+                        </p>
+                      </div>
+                    </div>
+                    {nft.contract.name && (
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-[#8A939B]">
+                          {nft.contract.name}
+                        </p>
+                      </div>
                     )}
                   </div>
                 </div>
               )
-            })}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+            }
+            
+            // Use the isBasename flag from the hook instead of checking again
+            const isBasenameNFT = nft.isBasename === true;
+            
+            // For Basename NFTs, use the Base logo and proper metadata
+            if (isBasenameNFT) {
+              // Extract the basename info - try multiple data sources
+              const basenameFull = 
+                nft.name || 
+                nft.raw?.metadata?.name || 
+                nft.title || 
+                nft.raw?.metadata?.title ||
+                null;
+              
+              // Try to extract a clean name
+              let basenameClean = basenameFull;
+              if (basenameFull && typeof basenameFull === 'string') {
+                // If it contains .base, just use that as the name
+                if (basenameFull.includes('.base')) {
+                  basenameClean = basenameFull;
+                } 
+                // If it's in the format "Basename: something.base", extract the something.base part
+                else if (basenameFull.includes('Basename:')) {
+                  const match = basenameFull.match(/Basename:\s*(.+)/i);
+                  if (match && match[1]) {
+                    basenameClean = match[1].trim();
+                  }
+                }
+              }
+              
+              // GUARANTEED display name that will never be undefined
+              const displayName = basenameClean || 
+                (nft.tokenId ? `Basename #${nft.tokenId}` : "Basename");
+              
+              // Create a truly unique key for this NFT
+              const uniqueKey = `basename-${nft.contract.address}-${nft.tokenId || 'id'}-${Math.random().toString(36).substring(2, 9)}`;
+              
+              return (
+                <div
+                  key={uniqueKey}
+                  className="bg-[#111111] rounded-xl overflow-hidden border border-[#303339] hover:shadow-lg transition-all duration-300"
+                >
+                  <div className="aspect-square relative flex items-center justify-center bg-[#111111]">
+                    <div className="w-32 h-32 relative">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2500 2500" className="w-full h-full">
+                        <path 
+                          fill="#0052FF" 
+                          d="M1247.8,2500c691.6,0,1252.2-559.6,1252.2-1250C2500,559.6,1939.4,0,1247.8,0C591.7,0,53.5,503.8,0,1144.9h1655.1v210.2H0C53.5,1996.2,591.7,2500,1247.8,2500z"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="p-3">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="truncate">
+                        <h3 className="text-sm font-semibold text-white truncate">
+                          {displayName}
+                        </h3>
+                        <p className="text-sm text-[#8A939B] truncate">
+                          {nft.description || nft.raw?.metadata?.description || "Base Name Service"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-[#8A939B]">
+                        Basenames
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )
+            }
+            
+            // For non-chart NFTs, use the normal rendering logic
+            const isSvg = 
+              nft.media?.[0]?.gateway?.endsWith('.svg') || 
+              nft.media?.[0]?.raw?.endsWith('.svg') ||
+              nft.image?.originalUrl?.endsWith('.svg') || 
+              nft.image?.cachedUrl?.endsWith('.svg') ||
+              nft.raw?.metadata?.image?.endsWith('.svg') ||
+              nft.raw?.metadata?.animation_url?.endsWith('.svg')
+            
+            const isInteractiveWeb = 
+              nft.media?.[0]?.gateway?.includes('?') || 
+              nft.media?.[0]?.raw?.includes('?') ||
+              nft.image?.originalUrl?.includes('?') ||
+              nft.image?.cachedUrl?.includes('?') ||
+              nft.raw?.metadata?.image?.includes('?') ||
+              nft.raw?.metadata?.animation_url?.includes('?')
+            
+            // Try to find the best image URL from multiple possible sources
+            const imageUrl = 
+              // First check the media array (from the updated API)
+              nft.media?.[0]?.gateway || 
+              nft.media?.[0]?.raw || 
+              // Then try the image object
+              nft.image?.cachedUrl || 
+              nft.image?.originalUrl || 
+              // Then try the metadata (sometimes in different locations)
+              nft.raw?.metadata?.image ||
+              nft.raw?.metadata?.animation_url ||
+              nft.metadata?.image ||
+              // Fallback to title as text if available
+              (nft.title ? null : "/placeholder.svg")
+            
+            // Display actual NFT title from multiple possible sources
+            const nftTitle = isBasenameNFT 
+              ? (nft.name || nft.raw?.metadata?.name || "Basename") 
+              : (nft.title || nft.name || nft.metadata?.name || nft.raw?.metadata?.name || `NFT #${nft.tokenId}`)
+            
+            // Get description from multiple possible sources
+            const nftDescription = 
+              isBasenameNFT
+                ? (nft.description || nft.metadata?.description || nft.raw?.metadata?.description || "Base Name Service")
+                : (nft.description || nft.metadata?.description || nft.raw?.metadata?.description || nft.contract?.name || "No description")
+            
+            // Create a truly unique key for this NFT
+            const uniqueKey = `nft-${nft.contract?.address || 'unknown'}-${nft.tokenId || 'id'}-${Math.random().toString(36).substring(2, 9)}`;
+            
+            return (
+              <div
+                key={uniqueKey}
+                className="bg-[#111111] rounded-xl overflow-hidden border border-[#303339] hover:shadow-lg transition-all duration-300"
+              >
+                <div className="aspect-square relative">
+                  {!imageUrl ? (
+                    <div 
+                      className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#303339]/20 to-[#303339]/10 overflow-hidden p-4 text-center"
+                    >
+                      <div>
+                        <h3 className="text-lg font-bold text-white">{nftTitle}</h3>
+                        <p className="text-xs text-[#8A939B] mt-2">
+                          {nft.contract?.name || (isBasenameNFT ? "Basenames" : "Unknown Collection")}
+                        </p>
+                        <div className="mt-3 text-xs px-2 py-1 bg-[#303339]/20 rounded-full inline-block text-[#8A939B]">
+                          {isBasenameNFT 
+                            ? "Basename" 
+                            : `#${nft.tokenId || "??"}`}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (isSvg || isInteractiveWeb) ? (
+                    <div className="w-full h-full flex items-center justify-center bg-[#111111]">
+                      <iframe
+                        src={imageUrl}
+                        className="w-full h-full"
+                        sandbox="allow-scripts allow-same-origin"
+                        title={nftTitle}
+                        style={{ 
+                          width: '100%', 
+                          height: '100%', 
+                          border: 'none',
+                          objectFit: 'contain',
+                          display: 'block',
+                          margin: '0 auto',
+                          transform: isSvg ? 'scale(1.2)' : 'none'
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-[#111111] overflow-hidden">
+                      <img
+                        src={imageUrl}
+                        alt={nftTitle}
+                        className="w-full h-full object-contain"
+                        onError={(e) => {
+                          console.error("Error loading image:", imageUrl)
+                          const imgElement = e.target as HTMLImageElement;
+                          imgElement.src = "/placeholder.svg";
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+                <div className="p-3">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="truncate">
+                      <h3 className="text-sm font-semibold text-white truncate">
+                        {nftTitle}
+                      </h3>
+                      <p className="text-sm text-[#8A939B] truncate">
+                        {nftDescription}
+                      </p>
+                    </div>
+                  </div>
+                  {nft.contract?.name && nft.contract.name !== "Basenames" && (
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-[#8A939B]">
+                        {nft.contract.name}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }

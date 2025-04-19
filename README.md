@@ -187,3 +187,7 @@ The project uses the following Vercel build settings:
 - Build Command: `pnpm install --no-frozen-lockfile && pnpm run build`
 - Install Command: `pnpm install --no-frozen-lockfile`
 - Development Command: `pnpm run dev` 
+
+NFT RPC:
+
+curl "http://localhost:3000/api/nfts?address=0x07b4E3A9134Bc88276e6Ff9516620755144CEC79" | jq .
