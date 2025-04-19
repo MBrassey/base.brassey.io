@@ -107,17 +107,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoggingOut(true);
 
     try {
-      // First disconnect the wallet
+      // First set the disconnect flag to prevent wallet auto-reconnect
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem("WALLET_DISCONNECT_IN_PROGRESS", "true");
+      }
+
+      // Disconnect the wallet first
       console.log("Calling disconnect from wagmi");
       await disconnect();
       
-      // Then clear all storage
+      // Clear all storage
       if (typeof window !== 'undefined') {
         console.log("Clearing storage items");
         
-        // Clear auth-related items first
+        // Clear auth-related items
         localStorage.removeItem("userAddress");
-        sessionStorage.setItem("WALLET_DISCONNECT_IN_PROGRESS", "true");
         
         // Clear wallet-related items from localStorage
         Object.keys(localStorage).forEach(key => {
@@ -159,27 +163,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAddress(null);
       setBasename(null);
       
-      // Use router for navigation if available, fallback to location
-      if (router) {
-        router.push('/');
-      } else if (typeof window !== 'undefined') {
-        window.location.href = '/';
-      }
+      // Navigate to home page
+      router.replace('/');
+      
+      // Add a small delay before removing the disconnect flag
+      setTimeout(() => {
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem("WALLET_DISCONNECT_IN_PROGRESS");
+        }
+        setIsLoggingOut(false);
+      }, 1000);
+      
     } catch (error) {
       console.error("Error during logout:", error);
-      // Even if there's an error, try to force logout
+      
+      // Even if there's an error, ensure we clean up
       setIsAuthenticated(false);
       setAddress(null);
       setBasename(null);
       
-      // Force navigation to login
-      if (router) {
-        router.push('/');
-      } else if (typeof window !== 'undefined') {
-        window.location.href = '/';
+      // Force navigation to home
+      router.replace('/');
+      
+      // Clean up disconnect flag after error
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem("WALLET_DISCONNECT_IN_PROGRESS");
       }
-    } finally {
-      // Reset logging out state
       setIsLoggingOut(false);
     }
   }
