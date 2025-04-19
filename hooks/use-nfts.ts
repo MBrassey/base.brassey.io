@@ -7,6 +7,12 @@ import { useMemo } from "react"
 
 // Extended NFT type with additional fields from our API
 export interface ExtendedNft extends OwnedNft {
+  id?: {
+    tokenId: string;
+    tokenMetadata?: {
+      tokenType?: string;
+    };
+  };
   media?: {
     raw?: string
     gateway?: string
@@ -78,24 +84,93 @@ export function useNFTs() {
     const nftsWithBasenameFlag = query.data.nfts.map((nft: ExtendedNft) => {
       // Check if this is a Basename NFT
       const isBasename = 
-        // Check contract addresses
+        // Check contract addresses (case insensitive)
         BASENAME_CONTRACT_ADDRESSES.includes(nft.contract.address.toLowerCase()) ||
-        // Check contract name
+        // Check contract name variations
         (nft.contract.name === "Basenames") || 
+        (nft.contract.name === "Base Name Service") ||
         (nft.contract.name?.toLowerCase()?.includes("basename")) ||
-        // Check metadata name
+        // Check metadata name variations
         (nft.raw?.metadata?.name?.toLowerCase()?.includes("basename")) ||
-        // Check for .base in the name
-        (nft.tokenId && nft.name?.toLowerCase()?.includes(".base")) ||
-        (nft.tokenId && nft.raw?.metadata?.name?.toLowerCase()?.includes(".base")) ||
+        // Check for .base in any name field
+        (nft.name?.toLowerCase()?.endsWith(".base")) ||
+        (nft.raw?.metadata?.name?.toLowerCase()?.endsWith(".base")) ||
+        (nft.title?.toLowerCase()?.endsWith(".base")) ||
         // Check for attributes
         (Array.isArray(nft.raw?.metadata?.attributes) && 
           nft.raw?.metadata?.attributes.some((attr: any) => 
             (attr.trait_type?.toLowerCase()?.includes('basename') || 
-             (attr.value && attr.value.toString()?.toLowerCase()?.includes('.base'))
+             attr.trait_type?.toLowerCase()?.includes('base name') ||
+             (attr.value && attr.value.toString()?.toLowerCase()?.endsWith('.base'))
             )
           )
+        ) ||
+        // Check description for Base Name Service mentions
+        (nft.description?.toLowerCase()?.includes("base name service")) ||
+        (nft.raw?.metadata?.description?.toLowerCase()?.includes("base name service"));
+      
+      // For Base Name NFTs, enhance the metadata
+      if (isBasename) {
+        // Extract the actual basename (e.g. "example.base")
+        let basename = null;
+        const possibleNames = [
+          nft.name,
+          nft.raw?.metadata?.name,
+          nft.title,
+          nft.raw?.metadata?.title,
+          // Also check attributes for the basename
+          ...(Array.isArray(nft.raw?.metadata?.attributes) 
+            ? nft.raw.metadata.attributes
+                .filter((attr: any) => attr.value?.toString().toLowerCase().endsWith('.base'))
+                .map((attr: any) => attr.value)
+            : [])
+        ].filter(Boolean); // Remove null/undefined values
+
+        // Find the first name that ends with .base
+        basename = possibleNames.find(name => 
+          name && typeof name === 'string' && name.toLowerCase().endsWith('.base')
         );
+
+        // If no direct .base name found, try to extract from "Basename: name.base" format
+        if (!basename) {
+          const nameWithPrefix = possibleNames.find(name =>
+            name && typeof name === 'string' && name.toLowerCase().includes('basename:')
+          );
+          if (nameWithPrefix) {
+            const match = nameWithPrefix.match(/basename:\s*(.+\.base)/i);
+            if (match && match[1]) {
+              basename = match[1].trim();
+            }
+          }
+        }
+
+        // If still no basename found but we have a tokenId, create a placeholder
+        if (!basename && nft.tokenId) {
+          basename = `Basename #${nft.tokenId}`;
+        }
+
+        // Enhance the NFT object with clean basename data
+        return {
+          ...nft,
+          isBasename,
+          name: basename || nft.name,
+          title: basename || nft.title,
+          description: nft.description || nft.raw?.metadata?.description || "Base Name Service",
+          contract: {
+            ...nft.contract,
+            name: "Base Name Service"
+          },
+          // Add raw metadata if missing
+          raw: {
+            ...nft.raw,
+            metadata: {
+              ...nft.raw?.metadata,
+              name: basename || nft.raw?.metadata?.name,
+              description: nft.raw?.metadata?.description || "Base Name Service"
+            }
+          }
+        };
+      }
       
       return {
         ...nft,

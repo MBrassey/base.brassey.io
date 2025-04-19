@@ -7,13 +7,35 @@ interface NftMedia {
   [key: string]: any;
 }
 
+interface NftContract {
+  address: string;
+  name?: string;
+}
+
+interface NftId {
+  tokenId: string;
+  tokenMetadata?: {
+    tokenType?: string;
+  };
+}
+
 interface Nft {
+  contract: NftContract;
+  id: NftId;
+  balance?: string;
   title?: string;
-  tokenId?: string;
-  contract?: {
-    name?: string;
+  tokenUri?: {
+    gateway?: string;
+    raw?: string;
   };
   media?: NftMedia[];
+  metadata?: any;
+  timeLastUpdated?: string;
+  contractMetadata?: {
+    name?: string;
+    symbol?: string;
+    tokenType?: string;
+  };
   [key: string]: any;
 }
 
@@ -64,7 +86,7 @@ export async function GET(request: Request) {
       console.log(`Successfully fetched ${data.ownedNfts?.length || 0} NFTs`)
       
       // Process NFTs to ensure media and metadata are present
-      const processedNfts = data.ownedNfts?.map((nft: Nft) => {
+      const processedNfts = await Promise.all(data.ownedNfts?.map(async (nft: Nft) => {
         // Make sure media URLs are absolute
         if (nft.media && Array.isArray(nft.media)) {
           nft.media = nft.media.map((item: NftMedia) => {
@@ -77,18 +99,71 @@ export async function GET(request: Request) {
             return item;
           });
         }
+
+        // Check if this is a Base Name NFT by contract address
+        const isBasename = nft.contract && [
+          "0x03c4738ee98ae44591e1a4a4f3cab6641d95dd9a", // Base Mainnet (new)
+          "0xd4416b13d2b3a9abae7acd5d6c2bbdbe25686401", // Base Mainnet (old)
+          "0x4def3d3b162e5585e5769ef959ff1a444b8e9f26", // Base Sepolia
+          "0x080b5bf8f360f85d3516ce00c811082d333b4acd"  // Base Goerli
+        ].includes(nft.contract.address.toLowerCase());
+
+        // For Base Name NFTs, ensure we have proper metadata
+        if (isBasename) {
+          console.log("Found Base Name NFT:", {
+            contract: nft.contract.address,
+            tokenId: nft.id?.tokenId,
+            tokenUri: nft.tokenUri
+          });
+
+          const baseNameImageUrl = "https://www.base.org/images/basenames/contract-uri/feature-image.png";
+
+          // Set proper metadata for Base Name NFTs
+          return {
+            ...nft,
+            id: {
+              tokenId: nft.id?.tokenId || '',
+              tokenMetadata: nft.id?.tokenMetadata
+            },
+            title: "Basename",
+            name: "Basename",
+            contract: {
+              ...nft.contract,
+              name: "Basenames"
+            },
+            description: "Basenames are a core onchain building block that enables anyone to establish their identity on Base by registering human-readable names for their address(es). They are a fully onchain solution which leverages ENS infrastructure deployed on Base.",
+            raw: {
+              metadata: {
+                name: "Basename",
+                description: "Basenames are a core onchain building block that enables anyone to establish their identity on Base by registering human-readable names for their address(es). They are a fully onchain solution which leverages ENS infrastructure deployed on Base.",
+                image: baseNameImageUrl
+              }
+            },
+            media: [{
+              gateway: baseNameImageUrl,
+              raw: baseNameImageUrl,
+              thumbnail: baseNameImageUrl
+            }],
+            image: {
+              cachedUrl: baseNameImageUrl,
+              originalUrl: baseNameImageUrl,
+              thumbnailUrl: baseNameImageUrl
+            },
+            isBasename: true
+          };
+        }
         
-        // Ensure names are not empty
+        // For non-Base Name NFTs, ensure names are not empty
         if (!nft.title || nft.title === "") {
-          if (nft.contract?.name) {
-            nft.title = `${nft.contract.name} #${nft.tokenId}`;
+          if (nft.contractMetadata?.name) {
+            nft.title = `${nft.contractMetadata.name} #${nft.id?.tokenId}`;
           } else {
-            nft.title = `NFT #${nft.tokenId}`;
+            nft.title = `NFT #${nft.id?.tokenId}`;
           }
         }
         
         return nft;
-      }) || [];
+      }) || []);
       
       // Add no-cache headers to response
       const jsonResponse = NextResponse.json({ nfts: processedNfts });

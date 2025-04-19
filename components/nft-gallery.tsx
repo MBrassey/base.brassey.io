@@ -8,8 +8,9 @@ import { Spinner } from "@/components/ui/spinner"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { AlertCircle } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { useNFTs, ExtendedNft } from "@/hooks/use-nfts"
+import { useNFTs, ExtendedNft as NFT } from "@/hooks/use-nfts"
 import { useEffect } from "react"
+import Image from "next/image"
 
 // Contract addresses for special handling
 const CHART_CONTRACT_ADDRESS = "0xb679683E562b183161d5f3F93c6fA1d3115c4D30"
@@ -18,7 +19,7 @@ const CHART_PREVIEW_URL = "https://charts-by-jvmi-jet.vercel.app/?values=[30,9,5
 export function NFTGallery() {
   const { address } = useAccount()
   const { data, isLoading, isError, error, refetch } = useNFTs()
-  const nfts = data?.nfts || [] as ExtendedNft[]
+  const nfts = data?.nfts || [] as NFT[]
 
   // Force refetch on mount and handle reconnection
   useEffect(() => {
@@ -68,9 +69,9 @@ export function NFTGallery() {
   }
 
   // Debug any Basename NFTs to console
-  const basenameNfts = nfts.filter((nft: ExtendedNft) => nft.isBasename === true);
+  const basenameNfts = nfts.filter((nft: NFT) => nft.isBasename === true);
   
-  console.log("Found Basename NFTs:", basenameNfts.map((nft: ExtendedNft) => ({
+  console.log("Found Basename NFTs:", basenameNfts.map((nft: NFT) => ({
     address: nft.contract.address,
     name: nft.name || nft.raw?.metadata?.name || "No name",
     tokenId: nft.tokenId || "No ID",
@@ -121,10 +122,23 @@ export function NFTGallery() {
   }
 
   // Filter out NFTs that would display as "Untitled" with "No description"
-  const filteredNfts = nfts.filter((nft: ExtendedNft) => {
-    // Debug the NFT that's showing as unknown
+  const filteredNfts = nfts.filter((nft: NFT) => {
+    // Debug logging for NFTs with missing data
     if (!nft.name && !nft.tokenId) {
-      console.log("Potential problematic NFT:", JSON.stringify(nft, null, 2));
+      console.log("NFT with missing data:", {
+        contract: nft.contract,
+        tokenId: nft.tokenId,
+        name: nft.name,
+        raw: nft.raw,
+        metadata: nft.metadata,
+        title: nft.title,
+        isBasename: nft.isBasename
+      });
+    }
+    
+    // Always show Base Name NFTs
+    if (nft.isBasename === true) {
+      return true;
     }
     
     // Special case NFTs should always be shown
@@ -139,15 +153,20 @@ export function NFTGallery() {
       nft.title || 
       nft.metadata?.name ||
       nft.tokenId ||
-      nft.contract?.name
+      nft.contract?.name ||
+      // Also check for Base Name specific identifiers
+      (nft.raw?.metadata?.attributes && 
+       nft.raw.metadata.attributes.some((attr: any) => 
+         attr.value?.toString().toLowerCase().endsWith('.base')
+       ))
     );
   });
   
   // Deduplicate NFTs only if they have the exact same contract address AND token ID
-  const dedupedNfts: ExtendedNft[] = [];
+  const dedupedNfts: NFT[] = [];
   const seen = new Set<string>();
   
-  filteredNfts.forEach((nft: ExtendedNft) => {
+  filteredNfts.forEach((nft: NFT) => {
     // Create a unique identifier from contract address and tokenId
     // Only use tokenId if it exists, otherwise use a random value to ensure uniqueness
     const tokenIdPart = nft.tokenId || Math.random().toString(36).substring(2);
@@ -168,7 +187,7 @@ export function NFTGallery() {
         <p className="text-muted-foreground">No NFTs found</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {dedupedNfts.map((nft: ExtendedNft) => {
+          {dedupedNfts.map((nft: NFT) => {
             // Check if this is a chart NFT
             const isChartNFT = nft.contract.address.toLowerCase() === CHART_CONTRACT_ADDRESS.toLowerCase()
             
@@ -226,67 +245,34 @@ export function NFTGallery() {
             
             // For Basename NFTs, use the Base logo and proper metadata
             if (isBasenameNFT) {
-              // Extract the basename info - try multiple data sources
-              const basenameFull = 
-                nft.name || 
-                nft.raw?.metadata?.name || 
-                nft.title || 
-                nft.raw?.metadata?.title ||
-                null;
-              
-              // Try to extract a clean name
-              let basenameClean = basenameFull;
-              if (basenameFull && typeof basenameFull === 'string') {
-                // If it contains .base, just use that as the name
-                if (basenameFull.includes('.base')) {
-                  basenameClean = basenameFull;
-                } 
-                // If it's in the format "Basename: something.base", extract the something.base part
-                else if (basenameFull.includes('Basename:')) {
-                  const match = basenameFull.match(/Basename:\s*(.+)/i);
-                  if (match && match[1]) {
-                    basenameClean = match[1].trim();
-                  }
-                }
-              }
-              
-              // GUARANTEED display name that will never be undefined
-              const displayName = basenameClean || 
-                (nft.tokenId ? `Basename #${nft.tokenId}` : "Basename");
-              
-              // Create a truly unique key for this NFT
-              const uniqueKey = `basename-${nft.contract.address}-${nft.tokenId || 'id'}-${Math.random().toString(36).substring(2, 9)}`;
+              const uniqueKey = `basename-${nft.contract.address}-${nft.id?.tokenId || 'id'}-${Math.random().toString(36).substring(2, 9)}`;
+              const displayTokenId = (nft.id?.tokenId || '').replace('0x', '');
+              const description = "Basenames are a core onchain building block that enables anyone to establish their identity on Base by registering human-readable names for their address(es). They are a fully onchain solution which leverages ENS infrastructure deployed on Base.";
               
               return (
                 <div
                   key={uniqueKey}
                   className="bg-[#111111] rounded-xl overflow-hidden border border-[#303339] hover:shadow-lg transition-all duration-300"
                 >
-                  <div className="aspect-square relative flex items-center justify-center bg-[#111111]">
-                    <div className="w-32 h-32 relative">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2500 2500" className="w-full h-full">
-                        <path 
-                          fill="#0052FF" 
-                          d="M1247.8,2500c691.6,0,1252.2-559.6,1252.2-1250C2500,559.6,1939.4,0,1247.8,0C591.7,0,53.5,503.8,0,1144.9h1655.1v210.2H0C53.5,1996.2,591.7,2500,1247.8,2500z"
-                        />
-                      </svg>
-                    </div>
+                  <div className="aspect-square relative bg-[#111111]">
+                    <Image
+                      src={nft.media?.[0]?.gateway || nft.image?.cachedUrl || ""}
+                      alt="Basename NFT"
+                      fill
+                      className="object-cover"
+                      priority
+                    />
                   </div>
                   <div className="p-3">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="truncate">
-                        <h3 className="text-sm font-semibold text-white truncate">
-                          {displayName}
-                        </h3>
-                        <p className="text-sm text-[#8A939B] truncate">
-                          {nft.description || nft.raw?.metadata?.description || "Base Name Service"}
+                    <div className="flex items-center justify-between">
+                      <div className="truncate w-full text-center">
+                        <p className="text-[13px] text-[#8A939B] truncate">
+                          Basenames #{displayTokenId}
+                        </p>
+                        <p className="text-[13px] text-[#8A939B] truncate">
+                          {description}
                         </p>
                       </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs text-[#8A939B]">
-                        Basenames
-                      </p>
                     </div>
                   </div>
                 </div>
@@ -421,3 +407,43 @@ export function NFTGallery() {
     </div>
   )
 }
+
+const NFTCard = ({ nft }: { nft: NFT }) => {
+  const displayName = nft.title || nft.name || 'Unnamed NFT';
+  const collectionName = nft.contract?.name || 'Unknown Collection';
+  const description = nft.description || 'No description available';
+  const imageUrl = nft.media?.[0]?.gateway || '/placeholder.png';
+  const tokenId = nft.tokenId || nft.id?.tokenId || '??';
+
+  return (
+    <Card className="overflow-hidden border border-gray-200 hover:border-gray-300 transition-all">
+      <CardHeader className="p-0">
+        <div className="relative aspect-square">
+          <Image
+            src={imageUrl}
+            alt={displayName}
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          />
+        </div>
+      </CardHeader>
+      <CardContent className="p-4">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-lg font-semibold leading-none tracking-tight">
+            {displayName}
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            {collectionName}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Token ID: {tokenId}
+          </p>
+          <p className="text-sm text-muted-foreground line-clamp-2">
+            {description}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
