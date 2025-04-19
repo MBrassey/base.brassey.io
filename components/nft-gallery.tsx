@@ -24,36 +24,32 @@ export function NFTGallery() {
   // Force refetch on mount and handle reconnection
   useEffect(() => {
     if (address) {
-      // First immediate refetch
+      // Initial fetch
       refetch()
       
-      // Staggered refetches to ensure data loads properly
-      const timeouts = [500, 1500, 3000].map(delay => 
-        setTimeout(() => {
-          if (address) {  // Only refetch if still connected
-            refetch()
-          }
-        }, delay)
-      )
-      
-      // Set up periodic refresh
-      const refreshInterval = setInterval(() => {
-        if (address) {
+      // One additional fetch after a short delay to ensure everything loaded
+      const retryTimeout = setTimeout(() => {
+        if (address && (!data?.nfts || data.nfts.length === 0)) {
+          console.log("No NFTs found on initial load, trying one more time...")
           refetch()
         }
-      }, 30000) // Refresh every 30 seconds
+      }, 2000)
       
       return () => {
-        timeouts.forEach(timeout => clearTimeout(timeout))
-        clearInterval(refreshInterval)
+        clearTimeout(retryTimeout)
       }
     }
-  }, [address, refetch])
+  }, [address, refetch, data?.nfts])
 
-  // Add event listener for visibility changes
+  // Only refetch when coming back to the tab if we don't have any NFTs
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && address) {
+      if (
+        document.visibilityState === 'visible' && 
+        address && 
+        (!data?.nfts || data.nfts.length === 0)
+      ) {
+        console.log("Tab visible again and no NFTs loaded, retrying fetch...")
         refetch()
       }
     }
@@ -62,7 +58,7 @@ export function NFTGallery() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [address, refetch])
+  }, [address, refetch, data?.nfts])
 
   if (!address) {
     return null
@@ -248,20 +244,26 @@ export function NFTGallery() {
               const uniqueKey = `basename-${nft.contract.address}-${nft.id?.tokenId || 'id'}-${Math.random().toString(36).substring(2, 9)}`;
               const displayTokenId = (nft.id?.tokenId || '').replace('0x', '');
               const description = "Basenames are a core onchain building block that enables anyone to establish their identity on Base by registering human-readable names for their address(es). They are a fully onchain solution which leverages ENS infrastructure deployed on Base.";
+              const imageUrl = nft.media?.[0]?.gateway || nft.image?.cachedUrl || "https://www.base.org/images/basenames/contract-uri/feature-image.png";
               
               return (
                 <div
                   key={uniqueKey}
                   className="bg-[#111111] rounded-xl overflow-hidden border border-[#303339] hover:shadow-lg transition-all duration-300"
                 >
-                  <div className="aspect-square relative bg-[#111111]">
-                    <Image
-                      src={nft.media?.[0]?.gateway || nft.image?.cachedUrl || ""}
-                      alt="Basename NFT"
-                      fill
-                      className="object-cover"
-                      priority
-                    />
+                  <div className="aspect-square relative bg-[#111111] overflow-hidden">
+                    <div className="w-full h-full flex items-center justify-center bg-[#111111]">
+                      <img
+                        src={imageUrl}
+                        alt="Basename NFT"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          console.error("Error loading Basename image:", imageUrl);
+                          const imgElement = e.target as HTMLImageElement;
+                          imgElement.src = "https://www.base.org/images/basenames/contract-uri/feature-image.png";
+                        }}
+                      />
+                    </div>
                   </div>
                   <div className="p-3">
                     <div className="flex items-center justify-between">

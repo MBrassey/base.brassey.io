@@ -60,21 +60,21 @@ export function useNFTs() {
       return response.json()
     },
     enabled: !!address,
-    // Keep data fresh for 30 seconds
-    staleTime: 30 * 1000,
-    // Cache data for 5 minutes
-    gcTime: 5 * 60 * 1000,
-    // Always refetch on mount
-    refetchOnMount: 'always',
-    // Refetch when coming back to the app
-    refetchOnWindowFocus: true,
+    // Keep data fresh for 5 minutes
+    staleTime: 5 * 60 * 1000,
+    // Cache data for 10 minutes
+    gcTime: 10 * 60 * 1000,
+    // Only refetch on mount if data is stale
+    refetchOnMount: true,
+    // Only refetch on window focus if data is stale
+    refetchOnWindowFocus: false,
     // Add retry options
-    retry: 5,
+    retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * (1.5 ** attemptIndex), 30000),
-    // Add refetch interval
-    refetchInterval: 30000,
-    // Keep refetching in background
-    refetchIntervalInBackground: true,
+    // Remove automatic refetch interval
+    refetchInterval: 0,
+    // Don't refetch in background
+    refetchIntervalInBackground: false,
   })
   
   // Process the NFTs to add the isBasename flag
