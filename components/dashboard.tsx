@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { LayoutDashboard, Plus, User, LogOut } from "lucide-react"
+import { LayoutDashboard, Plus, User, LogOut, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { base } from "viem/chains"
@@ -15,11 +15,17 @@ import { NFTGallery } from "./nft-gallery"
 
 export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { address, logout } = useAuth()
+  const { address, logout, isLoggingOut } = useAuth()
   const router = useRouter()
 
-  const handleLogout = () => {
-    logout()
+  const handleLogout = async () => {
+    try {
+      await logout()
+    } catch (error) {
+      console.error("Error during logout:", error)
+      // Force navigation to login even if logout fails
+      router.replace('/')
+    }
   }
 
   return (
@@ -53,6 +59,23 @@ export default function Dashboard() {
               <User className="h-4 w-4" />
               Profile
             </Link>
+            <button
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-red-500 text-left disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoggingOut ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Logging out...
+                </>
+              ) : (
+                <>
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </>
+              )}
+            </button>
           </div>
         </aside>
         <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">

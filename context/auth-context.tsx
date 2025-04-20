@@ -110,9 +110,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // First set the disconnect flag to prevent wallet auto-reconnect
       if (typeof window !== 'undefined') {
         sessionStorage.setItem("WALLET_DISCONNECT_IN_PROGRESS", "true");
+        // Add URL parameter to help prevent reconnection
+        const url = new URL(window.location.href);
+        url.searchParams.set('logout', 'true');
+        window.history.replaceState({}, '', url.toString());
       }
 
-      // Disconnect the wallet first
+      // Disconnect the wallet first - ensure it's awaited
       console.log("Calling disconnect from wagmi");
       await disconnect();
       
@@ -163,16 +167,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAddress(null);
       setBasename(null);
       
-      // Navigate to home page
-      router.replace('/');
+      // Navigate to home page with reload flag
+      router.replace('/?reload=true');
       
-      // Add a small delay before removing the disconnect flag
+      // Force a hard reload after a short delay to ensure fresh state
       setTimeout(() => {
         if (typeof window !== 'undefined') {
-          sessionStorage.removeItem("WALLET_DISCONNECT_IN_PROGRESS");
+          console.log("Performing hard reload to clear all application state");
+          window.location.href = '/?fresh=true';
         }
-        setIsLoggingOut(false);
-      }, 1000);
+      }, 100);
       
     } catch (error) {
       console.error("Error during logout:", error);
@@ -182,14 +186,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAddress(null);
       setBasename(null);
       
-      // Force navigation to home
-      router.replace('/');
-      
-      // Clean up disconnect flag after error
+      // Force hard reload to home page
       if (typeof window !== 'undefined') {
-        sessionStorage.removeItem("WALLET_DISCONNECT_IN_PROGRESS");
+        window.location.href = '/?fresh=true';
       }
-      setIsLoggingOut(false);
     }
   }
 

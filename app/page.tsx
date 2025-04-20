@@ -79,6 +79,57 @@ export default function LoginPage() {
     setIsMounted(true)
   }, [])
 
+  // Check for reload or fresh parameters and ensure logout is complete
+  useEffect(() => {
+    if (!isMounted) return
+
+    // Check URL for reload or fresh parameters
+    const queryParams = new URLSearchParams(window.location.search)
+    const reload = queryParams.get('reload')
+    const fresh = queryParams.get('fresh')
+    
+    if (reload === 'true' || fresh === 'true') {
+      console.log('Detected reload/fresh parameter, clearing wallet connections')
+      
+      // Force clear any wallet storage
+      Object.keys(localStorage).forEach(key => {
+        if (
+          key.includes('wagmi') || 
+          key.includes('wallet') || 
+          key.includes('walletconnect') || 
+          key.includes('wc@') ||
+          key.includes('connectedWallets') ||
+          key.includes('coinbase') ||
+          key.includes('brave') ||
+          key.includes('metamask') ||
+          key === 'userAddress'
+        ) {
+          localStorage.removeItem(key)
+        }
+      })
+      
+      // Clear all relevant session storage
+      Object.keys(sessionStorage).forEach(key => {
+        if (
+          key.includes('wagmi') || 
+          key.includes('wallet') || 
+          key.includes('walletconnect') || 
+          key.includes('wc@') ||
+          key === 'WALLET_DISCONNECT_IN_PROGRESS'
+        ) {
+          sessionStorage.removeItem(key)
+        }
+      })
+      
+      // Clean URL by removing parameters
+      const url = new URL(window.location.href)
+      if (url.searchParams.has('reload')) url.searchParams.delete('reload')
+      if (url.searchParams.has('fresh')) url.searchParams.delete('fresh')
+      if (url.searchParams.has('logout')) url.searchParams.delete('logout')
+      window.history.replaceState({}, '', url.toString())
+    }
+  }, [isMounted])
+
   // Handle successful connection
   useEffect(() => {
     if (isConnected && address && isMounted) {

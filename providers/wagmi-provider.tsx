@@ -14,29 +14,89 @@ const isDisconnectInProgress =
   (window.sessionStorage.getItem('WALLET_DISCONNECT_IN_PROGRESS') === 'true' ||
    window.location.href.includes('logout=true'));
 
-// Create wagmi config with full connectors or no connectors based on logout state
-const config: Config = createConfig({
-  chains: [base],
-  transports: {
-    [base.id]: http(),
+// Create a client for react-query with configured options
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1, // Reduce retry count to prevent excessive retries during logout
+      refetchOnWindowFocus: false, // Disable refetch on window focus which can cause reconnection
+      gcTime: 1000 * 60 * 5, // Cache for 5 minutes
+    },
   },
-  connectors: isDisconnectInProgress 
-    ? [] // Don't initialize any connectors if we're in the middle of a disconnect
-    : [
-      injected(),
-      coinbaseWallet({
-        appName: "base.brassey.io",
-      }),
-      walletConnect({
-        projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID as string,
-      }),
-    ],
 })
 
-// Create a client for react-query
-const queryClient = new QueryClient()
-
 export function WagmiConfig({ children }: { children: React.ReactNode }) {
+  const [isReady, setIsReady] = useState(false);
+  const [shouldEnableConnectors, setShouldEnableConnectors] = useState(!isDisconnectInProgress);
+
+  // Handle disconnect process and URL parameters
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // Check for logout URL parameter and fresh/reload parameters
+    const url = new URL(window.location.href);
+    const isLogout = url.searchParams.has('logout') && url.searchParams.get('logout') === 'true';
+    const isFresh = url.searchParams.has('fresh') && url.searchParams.get('fresh') === 'true';
+    const isReload = url.searchParams.has('reload') && url.searchParams.get('reload') === 'true';
+    
+    // If any of the logout indicators are present, force disconnect
+    if ((isLogout || isFresh || isReload) && !window.sessionStorage.getItem('WALLET_DISCONNECT_IN_PROGRESS')) {
+      console.log("Logout/Reload detected, preventing wallet reconnection");
+      window.sessionStorage.setItem('WALLET_DISCONNECT_IN_PROGRESS', 'true');
+      setShouldEnableConnectors(false);
+      
+      // Force clear all wallet storage immediately
+      Object.keys(localStorage).forEach(key => {
+        if (
+          key.includes('wagmi') || 
+          key.includes('wallet') || 
+          key.includes('walletconnect') || 
+          key.includes('wc@') ||
+          key.includes('connectedWallets') ||
+          key.includes('coinbase') ||
+          key.includes('brave') ||
+          key.includes('metamask') ||
+          key === 'userAddress'
+        ) {
+          localStorage.removeItem(key);
+        }
+      });
+      
+      // Clear all relevant session storage
+      Object.keys(sessionStorage).forEach(key => {
+        if (
+          key.includes('wagmi') || 
+          key.includes('wallet') || 
+          key.includes('walletconnect') || 
+          key.includes('wc@')
+        ) {
+          sessionStorage.removeItem(key);
+        }
+      });
+    }
+    
+    setIsReady(true);
+  }, []);
+
+  // Create wagmi config with connectors only when not disconnecting
+  const config = createConfig({
+    chains: [base],
+    transports: {
+      [base.id]: http(),
+    },
+    connectors: shouldEnableConnectors 
+      ? [
+          injected(),
+          coinbaseWallet({
+            appName: "base.brassey.io",
+          }),
+          walletConnect({
+            projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID as string,
+          }),
+        ]
+      : [], // No connectors during disconnect
+  });
+  
   // Add error handling and cleanup
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -59,11 +119,6 @@ export function WagmiConfig({ children }: { children: React.ReactNode }) {
         return originalConsoleError.apply(console, args);
       };
       
-      // Clean up the disconnect flag after a load
-      if (window.sessionStorage.getItem('WALLET_DISCONNECT_IN_PROGRESS') === 'true') {
-        window.sessionStorage.removeItem('WALLET_DISCONNECT_IN_PROGRESS');
-      }
-      
       // Cleanup function
       return () => {
         console.error = originalConsoleError;
@@ -71,11 +126,11 @@ export function WagmiConfig({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  return (
+  return isReady ? (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     </WagmiProvider>
-  )
+  ) : null;
 }
 
 export function CustomWagmiProvider({ children }: { children: React.ReactNode }) {
@@ -85,11 +140,57 @@ export function CustomWagmiProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     setMounted(true);
     
-    // Check for disconnect in progress
+    // Check for disconnect in progress or logout parameter
     const checkDisconnectState = () => {
       if (typeof window !== 'undefined') {
         const disconnectInProgress = sessionStorage.getItem("WALLET_DISCONNECT_IN_PROGRESS");
-        setIsDisconnecting(!!disconnectInProgress);
+        const url = new URL(window.location.href);
+        const isLogout = url.searchParams.has('logout') && url.searchParams.get('logout') === 'true';
+        const isFresh = url.searchParams.has('fresh') && url.searchParams.get('fresh') === 'true';
+        const isReload = url.searchParams.has('reload') && url.searchParams.get('reload') === 'true';
+        
+        if ((isLogout || isFresh || isReload) && !disconnectInProgress) {
+          console.log("Logout/Reload/Fresh detected in CustomWagmiProvider");
+          sessionStorage.setItem("WALLET_DISCONNECT_IN_PROGRESS", "true");
+          // Clean URL
+          if (isLogout) url.searchParams.delete('logout');
+          if (isFresh) url.searchParams.delete('fresh');
+          if (isReload) url.searchParams.delete('reload');
+          window.history.replaceState({}, '', url.toString());
+        }
+        
+        setIsDisconnecting(!!disconnectInProgress || isLogout || isFresh || isReload);
+        
+        // If disconnecting, clear wallet storage
+        if (!!disconnectInProgress || isLogout || isFresh || isReload) {
+          // Clear local storage wallet data to force disconnect
+          Object.keys(localStorage).forEach(key => {
+            if (
+              key.includes('wagmi') || 
+              key.includes('wallet') || 
+              key.includes('walletconnect') || 
+              key.includes('wc@') ||
+              key.includes('connectedWallets') ||
+              key.includes('coinbase') ||
+              key.includes('brave') ||
+              key.includes('metamask')
+            ) {
+              localStorage.removeItem(key);
+            }
+          });
+          
+          // Clear wallet-related items from sessionStorage
+          Object.keys(sessionStorage).forEach(key => {
+            if (
+              key.includes('wagmi') || 
+              key.includes('wallet') || 
+              key.includes('walletconnect') || 
+              key.includes('wc@')
+            ) {
+              sessionStorage.removeItem(key);
+            }
+          });
+        }
       }
     };
 

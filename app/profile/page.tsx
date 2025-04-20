@@ -140,8 +140,14 @@ export default function ProfilePage() {
     };
   }, [formattedAddress]);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error("Error during logout:", error);
+      // Force navigation to login even if logout fails
+      router.replace('/');
+    }
   }
 
   if (!isAuthenticated || !address) {

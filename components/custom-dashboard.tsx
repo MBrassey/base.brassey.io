@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Filter, LayoutDashboard, User, LogOut } from "lucide-react"
+import { Filter, LayoutDashboard, User, LogOut, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import { base } from "viem/chains"
@@ -155,10 +155,20 @@ export function CustomDashboard() {
             </Link>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-red-500 text-left"
+              disabled={isLoggingOut}
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-red-500 text-left disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <LogOut className="h-4 w-4" />
-              Logout
+              {isLoggingOut ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Logging out...
+                </>
+              ) : (
+                <>
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </>
+              )}
             </button>
           </div>
         </aside>
