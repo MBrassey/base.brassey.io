@@ -1,6 +1,6 @@
 # base.brassey.io
 
-A Web3 Dashboard for the Base blockchain with wallet connection, on-chain identity features, ERC-20 token support, and NFT display capabilities.
+A Base-native wallet dashboard: identity (Basename + avatar), ETH & ERC-20 balances, NFT gallery, send, and receive — rendered with wagmi + viem, with spam filtering on both tokens and NFTs.
 
 ## Architecture Overview
 
@@ -10,13 +10,13 @@ flowchart TD
     A[Next.js App]
     A --> B[Frontend]
     A --> C[Backend]
-    
+
     B --> D[UI Components]
     B --> E[Wallet Connect]
-    
+
     C --> F[API Routes]
-    F --> G[Alchemy SDK]
-    
+    F --> G[Alchemy + Base RPC]
+
     G --> H[Base Chain]
     E --> H
 ```
@@ -24,170 +24,158 @@ flowchart TD
 ## Technical Stack
 
 ### Core Framework
-- **Next.js 15.2.4**: React framework with App Router
-- **React 19.x**: UI library with the latest React features
-- **TypeScript 5.x**: Type-safe JavaScript
+- **Next.js 16.x** with App Router
+- **React 19.x**
+- **TypeScript 5.x**
 
 ### Blockchain Integration
-- **Wagmi**: React hooks for Ethereum (latest version)
-- **Viem**: Low-level Ethereum interface (latest version)
-- **Alchemy SDK 3.5.6**: Blockchain API integrations
-- **@coinbase/onchainkit**: Base blockchain identity components (latest version)
+- **wagmi** — React hooks for Ethereum / Base
+- **viem** — low-level Ethereum interface (used to read the Base L2 Resolver for Basename + avatar resolution)
+- **Alchemy SDK 3.x** — NFT and token balance RPC
+- **@coinbase/onchainkit** — Basename / Identity / Socials components
 
 ### Wallet Connection
-- **MetaMask**: Browser extension wallet
-- **Coinbase Wallet**: Mobile and browser wallet
-- **WalletConnect v2**: Universal wallet connector
-- **Brave Wallet**: Browser-integrated wallet support
+- MetaMask (extension)
+- Coinbase Wallet (mobile + extension)
+- WalletConnect v2 (any mobile wallet)
+- Generic injected providers (Brave, Phantom EVM, etc.)
+- Safe
 
-### UI Components
-- **Tailwind CSS 3.4.17**: Utility-first CSS framework
-- **Radix UI**: Various components (^1.1.x - ^2.1.x)
-- **Lucide React 0.454.0**: SVG icon library
-- **shadcn/ui**: Component collection built with Radix and Tailwind
+### UI
+- Tailwind CSS 3.4 (JetBrains Mono as the sole face, brassey.io palette)
+- Radix UI primitives via shadcn/ui
+- Lucide icons
 
 ### Data Management
-- **TanStack Query 5.73.3**: Data fetching and caching library
+- TanStack Query 5.x (queries are long-stale and do not auto-refetch to keep the dashboard calm)
 
 ## Environment Variables
 
-Before running the project, you'll need to set up the following environment variables:
-
-### Required Environment Variables
-
-Create a `.env.local` file in the root of the project with the following variables:
+Create a `.env.local` at the repo root:
 
 ```
-# WalletConnect Project ID 
-# Get one at https://cloud.walletconnect.com/
+# WalletConnect Project ID — https://cloud.walletconnect.com/
 WALLETCONNECT_PROJECT_ID=your_project_id_here
 NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id_here
 
-# Alchemy API Key for Base
-# Get one at https://dashboard.alchemy.com/
+# Alchemy API Key for Base mainnet — https://dashboard.alchemy.com/
+# Used for NFT + token RPC and as a fast RPC for Basename resolution.
 ALCHEMY_API_KEY=your_alchemy_api_key_here
-
-# Coinbase Developer Platform Project ID (Optional)
-CDP_PROJECT_ID=your_cdp_project_id_here
-```
-
-### Optional Environment Variables
-```
-# For enhanced development logging
-DEBUG=true
 ```
 
 ## Feature Overview
 
 ### Wallet Connection
-The application supports multiple wallet connection methods:
-- MetaMask browser extension
-- Coinbase Wallet (mobile and extension)
-- WalletConnect v2 (for connecting mobile wallets)
-- Brave Wallet (integrated with the Brave browser)
+Connect any of MetaMask, Coinbase Wallet, WalletConnect v2, Brave/Phantom injected, or Safe. Session is persisted to `localStorage` via the auth context so balances and avatar render immediately on every navigation (no rehydration flash).
 
-### Base Chain Integration
-- NFT gallery displaying tokens owned on Base
-- Wallet balances for Base tokens
-- On-chain identity resolution through OnchainKit
-- ENS-compatible name resolution for Base addresses
-- ERC-20 token support for managing and viewing token balances
+### Onchain Identity (Basenames)
+- `GET /api/avatar?address=0x…` reads the Basename L2 Resolver on Base directly:
+  1. Reverse-resolves the address to its Basename.
+  2. Reads the `avatar` text record.
+  3. Falls back to Coinbase's default blue-face Basename SVG (deterministic per name) when no custom avatar is set.
+- Rendered over a deterministic steel-blue→dark gradient tile so the avatar always paints, even if the RPC is briefly slow.
 
-### Base Identity Integrations
-- **Base Identity Card**: Display personalized on-chain identity card
-- **Avatar**: Show user's on-chain avatar with Coinbase OnchainKit integration
-- **Basename**: Resolve and display Base usernames (similar to ENS names)
-- **Social Connections**: Link and display social profiles connected to Base identity
-- **Fund Integration**: Support for Coinbase Wallet's seamless funding and withdrawal mechanisms
+### Send
+- Send modal on the wallet card. Supports native ETH (`useSendTransaction`) and ERC-20 tokens (`useWriteContract` → `transfer(address,uint256)`) on Base.
+- Asset picker renders **only the tokens the wallet actually holds** — native ETH with a non-zero balance plus every non-spam ERC-20 from the token gallery. No fixed list.
+- Inline balance + "max" fill, recipient address validation via `viem.isAddress`, chain auto-switch to Base if the wallet is elsewhere, and Basescan receipt link once confirmed.
+- Runs entirely through your connected wallet — no CDP key, no third-party API.
 
-### User Interface
-- Dark mode UI with Base-inspired design
-- Responsive layouts for mobile and desktop
-- Accessible components meeting WCAG guidelines
-- Custom wallet icons including Brave Wallet support
+### Receive
+- Receive modal showing the wallet address alongside a locally-rendered QR code (via `qrcode`).
+- Styled to match the terminal body (#1F1D20 / steel blue), with a small Base glyph in the center of the QR.
+- One-click address copy and a Basescan deeplink.
+
+### Tokens
+- ERC-20 balances via Alchemy `alchemy_getTokenBalances` + `alchemy_getTokenMetadata`.
+- Client-side spam heuristics in `lib/spam.ts` (URLs, airdrop/claim/visit/telegram keywords, suspicious unicode, overlong symbols, known-good allowlist). Spam tokens are hidden by default with a toggle to reveal.
+
+### NFTs
+- NFTs via Alchemy `getNFTs` on Base.
+- Basenames and special-case tokens (e.g., the interactive chart NFT) always shown.
+- Same spam heuristic applied to NFT name/description; toggle to reveal.
+
+### Socials
+Coinbase identity socials (Twitter / GitHub / Farcaster / Lens / website) via the project's own `/api/socials/proxy` route.
+
+### Explorer
+One-click jump to Basescan from the wallet card.
+
+### UI
+Dark terminal aesthetic matching brassey.io — JetBrains Mono everywhere, `#4B7F9B` steel blue accent, `#1F1D20` terminal body, grid ambient background.
 
 ## Application Structure
 
 ```
-app/                   # Next.js App Router structure
-├── api/               # API routes for server-side operations
-│   ├── block-height/  # Base blockchain height API
-│   ├── nfts/          # NFT retrieval via Alchemy
-│   ├── tokens/        # ERC-20 token data retrieval
-│   ├── onchain-config/ # On-chain configuration data
-│   └── wallet-config/ # Secure wallet configuration
-├── dashboard/         # Dashboard page
-├── profile/           # User profile page
-└── layout.tsx         # Root layout with providers
+app/                          # Next.js App Router
+├── api/
+│   ├── avatar/               # Basename + avatar resolution (L2 Resolver)
+│   ├── block-height/         # Base block number
+│   ├── nfts/                 # NFT retrieval via Alchemy
+│   ├── tokens/               # ERC-20 balances + metadata
+│   ├── socials/proxy/        # Coinbase identity socials proxy
+│   ├── onchain-config/       # Public CDP project id
+│   └── wallet-config/        # WalletConnect project id
+├── dashboard/                # Dashboard page
+├── profile/                  # Profile page
+├── identity/                 # Identity page
+└── layout.tsx                # Root layout with providers
 
-components/            # Reusable React components
-├── ui/                # UI components from shadcn/ui
-├── onchain-components.tsx # OnchainKit integration
-├── custom-socials.tsx # Custom social links component 
-├── dashboard-header.tsx # Header for dashboard and profile pages
-├── error-boundary.tsx # Error handling component
-├── wallet-card.tsx    # Wallet display with balance
-├── loading-overlay.tsx # Loading state component
-└── safe-avatar.tsx    # Safe avatar rendering component
+components/
+├── ui/                       # shadcn/ui primitives
+├── onchain-components.tsx    # BaseAvatar + BaseName + Socials
+├── dashboard-header.tsx      # Fixed nav with wordmark
+├── custom-dashboard.tsx      # Dashboard shell (wallet + tokens side-by-side)
+├── wallet-card.tsx           # Balance hero + send / receive / explorer
+├── send-modal.tsx            # Native ETH + ERC-20 transfer (wagmi-signed)
+├── receive-modal.tsx         # Address + QR code deposit panel
+├── token-gallery.tsx         # ERC-20 list with spam toggle
+├── nft-gallery.tsx           # NFT grid with spam toggle
+└── wallet-connection-modal.tsx
 
-context/               # React context providers
-└── auth-context.tsx   # Authentication state management
+context/
+└── auth-context.tsx          # localStorage-persisted auth
 
-hooks/                 # Custom React hooks
-├── use-profile.ts     # User profile data hook
-├── use-wallet-config.ts # Wallet configuration hook
-├── use-token-balances.ts # ERC-20 token balance hook
-└── use-nfts.ts        # NFT fetching hook
+hooks/
+├── use-profile.ts
+├── use-tokens.ts
+├── use-nfts.ts
+├── use-block-height.ts
+└── use-wallet-config.ts
 
-providers/             # React providers
-└── theme-provider.tsx # Theme context provider
-
-styles/                # Global styles
-└── globals.css        # Global CSS with Tailwind directives
-
-public/                # Static assets
-└── wallet-icons/      # SVG wallet icons
+lib/
+├── basename-avatar.ts        # L2 Resolver ABI + default avatars
+├── send-tokens.ts            # Sendable token list (ETH + ERC-20s on Base)
+├── spam.ts                   # Token / NFT spam heuristics
+└── utils.ts
 ```
 
 ## Node.js Version Requirements
 
-This project requires:
-- Node.js 20.12.0 or higher
-- pnpm 8.0.0 or higher
+- Node.js 20.12.0+
+- pnpm 8.0.0+
 
 ## Development
 
-To run the development server:
-
 ```bash
-# Install dependencies with pnpm
 pnpm install
-
-# Start the development server
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000 in your browser.
 
 ## Deployment
 
-The application is optimized for deployment on Vercel. The project includes:
-
-- `vercel.json` for Vercel configuration
-- `.npmrc` for package manager settings
-- `.nvmrc` specifying Node.js version (20.12.0)
-
-When deploying, add these environment variables as Vercel secrets:
+Optimized for Vercel. Set these env vars in the Vercel project:
 - `WALLETCONNECT_PROJECT_ID`
 - `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`
 - `ALCHEMY_API_KEY`
-- `CDP_PROJECT_ID` (optional)
 
-The project uses the following Vercel build settings:
-- Build Command: `pnpm install --no-frozen-lockfile && pnpm run build`
-- Install Command: `pnpm install --no-frozen-lockfile`
-- Development Command: `pnpm run dev` 
+Build command: `pnpm install --no-frozen-lockfile && pnpm run build`
 
-NFT RPC:
+## Quick API check
 
+```bash
 curl "http://localhost:3000/api/nfts?address=0x07b4E3A9134Bc88276e6Ff9516620755144CEC79" | jq .
+curl "http://localhost:3000/api/avatar?address=0x07b4E3A9134Bc88276e6Ff9516620755144CEC79" | jq .
+```

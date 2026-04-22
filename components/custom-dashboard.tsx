@@ -1,12 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Filter, LayoutDashboard, User, LogOut, Loader2 } from "lucide-react"
-import Link from "next/link"
-import { useRouter, usePathname } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { base } from "viem/chains"
 
-import { Button } from "@/components/ui/button"
 import { useAuth } from "@/context/auth-context"
 import { DashboardHeader } from "./dashboard-header"
 import { ErrorBoundary } from "./error-boundary"
@@ -15,93 +12,55 @@ import { NFTGallery } from "./nft-gallery"
 import { TokenGallery } from "./token-gallery"
 import { Spinner } from "@/components/ui/spinner"
 import { useBlockHeight } from "@/hooks/use-block-height"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { RefreshCw } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
+
+function SectionHeading({ eyebrow, title, count }: { eyebrow: string; title: string; count?: number | string }) {
+  return (
+    <div className="flex items-baseline justify-between">
+      <div className="flex items-baseline gap-3">
+        <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-mint">{eyebrow}</span>
+        <h2 className="font-display text-lg font-semibold tracking-tight text-foreground">{title}</h2>
+      </div>
+      {count !== undefined && (
+        <span className="font-mono text-xs text-muted-foreground">{count}</span>
+      )}
+    </div>
+  )
+}
 
 export function CustomDashboard() {
   const [isMounted, setIsMounted] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
-  const { address, logout } = useAuth()
+  const { address } = useAuth()
   const router = useRouter()
-  const pathname = usePathname()
-  const { data: blockHeightData, isLoading: isBlockHeightLoading, error: blockHeightError, refetch: refetchBlockHeight } = useBlockHeight()
+  const { data: blockHeightData, isLoading: isBlockHeightLoading } = useBlockHeight()
   const queryClient = useQueryClient()
 
-  // Handle mounting state
   useEffect(() => {
     setIsMounted(true)
-    // Add a small delay before setting loading to false to ensure data is ready
-    const timeout = setTimeout(() => {
-      setIsLoading(false)
-    }, 2000) // Increased delay to match DashboardPage
-    return () => clearTimeout(timeout)
+    const t = setTimeout(() => setIsLoading(false), 600)
+    return () => clearTimeout(t)
   }, [])
 
-  // Force data loading on mount and handle authentication
   useEffect(() => {
     if (!isMounted || isLoggingOut) return
-    
     if (!address) {
-      router.push('/')
-      return
+      router.push("/")
     }
+    // Do not aggressively invalidate on mount — React Query's default
+    // staleness handling already covers this and repeatedly invalidating
+    // was what caused the dashboard to "flash reload" every few seconds.
+  }, [address, router, isMounted, isLoggingOut])
 
-    // Clear existing data first to force a fresh load
-    queryClient.removeQueries({ queryKey: ["tokens"] });
-    queryClient.removeQueries({ queryKey: ["nfts"] });
-    queryClient.removeQueries({ queryKey: ["blockHeight"] });
-
-    // Immediate invalidation
-    const invalidateQueries = () => {
-      queryClient.invalidateQueries({ queryKey: ["tokens"] })
-      queryClient.invalidateQueries({ queryKey: ["nfts"] })
-      queryClient.invalidateQueries({ queryKey: ["blockHeight"] })
-    }
-
-    // Execute immediate invalidation
-    invalidateQueries()
-    
-    // Staggered invalidations to ensure data loads properly
-    const timeouts = [800, 2000, 5000].map(delay => 
-      setTimeout(() => {
-        if (address) {  // Only refetch if still authenticated
-          invalidateQueries()
-        }
-      }, delay)
-    )
-    
-    return () => {
-      timeouts.forEach(timeout => clearTimeout(timeout))
-    }
-  }, [address, queryClient, router, isMounted, isLoggingOut])
-
-  const handleLogout = async () => {
-    setIsLoggingOut(true)
-    try {
-      // Clear all queries before logout
-      queryClient.clear()
-      // Remove any pending query retries
-      queryClient.cancelQueries()
-      // Perform logout
-      await logout()
-    } catch (error) {
-      console.error("Error during logout:", error)
-      // Force navigation to login even if logout fails
-      router.push('/')
-    }
-  }
-
-  // Show loading state
   if (!isMounted || isLoading || isLoggingOut) {
     return (
-      <div className="flex min-h-screen w-full flex-col bg-black">
-        <div className="flex items-center justify-center min-h-screen">
+      <div className="flex min-h-screen w-full flex-col">
+        <div className="flex min-h-screen items-center justify-center">
           <div className="flex flex-col items-center gap-4">
             <Spinner className="h-8 w-8" />
-            <p className="text-muted-foreground">
-              {isLoggingOut ? "Logging out..." : "Loading dashboard..."}
+            <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              {isLoggingOut ? "signing out…" : "loading dashboard…"}
             </p>
           </div>
         </div>
@@ -109,144 +68,101 @@ export function CustomDashboard() {
     )
   }
 
-  // Don't render anything if not authenticated
-  if (!address) {
-    return null
-  }
+  if (!address) return null
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-black">
+    <div className="flex min-h-screen w-full flex-col">
       <ErrorBoundary
         fallback={
-          <nav className="flex h-14 items-center border-b border-border bg-black px-4 lg:h-[60px]">
-            <div className="flex items-center gap-0 font-mono text-xl">
-              <span className="text-primary">base</span>
-              <span className="text-foreground">.earn</span>
-            </div>
+          <nav className="flex h-14 items-center border-b border-border px-4 lg:h-[60px]">
+            <span className="font-display text-lg font-semibold">base.brassey.io</span>
           </nav>
         }
       >
         <DashboardHeader />
       </ErrorBoundary>
-      <div className="flex flex-1 pt-14 lg:pt-[60px]">
-        <aside className="hidden w-[200px] flex-col border-r border-border bg-black md:flex lg:w-[240px] overflow-y-auto">
-          <div className="flex flex-col gap-2 p-4">
-            <Link
-              href="/dashboard"
-              className={`flex items-center gap-2 rounded-lg px-3 py-2 transition-all hover:text-foreground ${
-                pathname === "/dashboard" 
-                  ? "bg-accent text-accent-foreground" 
-                  : "text-muted-foreground"
-              }`}
-            >
-              <LayoutDashboard className="h-4 w-4" />
-              Dashboard
-            </Link>
-            <Link
-              href="/profile"
-              className={`flex items-center gap-2 rounded-lg px-3 py-2 transition-all hover:text-foreground ${
-                pathname === "/profile" 
-                  ? "bg-accent text-accent-foreground" 
-                  : "text-muted-foreground"
-              }`}
-            >
-              <User className="h-4 w-4" />
-              Profile
-            </Link>
-            <button
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-red-500 text-left disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoggingOut ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Logging out...
-                </>
-              ) : (
-                <>
-                  <LogOut className="h-4 w-4" />
-                  Logout
-                </>
-              )}
-            </button>
-          </div>
-        </aside>
-        <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-          <div className="flex items-center gap-4">
-            <h1 className="flex-1 font-semibold text-lg md:text-2xl">Dashboard</h1>
-            <div className="flex items-center gap-2">
-              <Button size="sm" className="h-8 bg-[#0052FF] hover:bg-[#0039b3]">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2500 2500" className="mr-2 h-3.5 w-3.5 text-white">
-                  <path 
-                    fill="currentColor" 
-                    d="M1247.8,2500c691.6,0,1252.2-559.6,1252.2-1250C2500,559.6,1939.4,0,1247.8,0C591.7,0,53.5,503.8,0,1144.9h1655.1v210.2H0C53.5,1996.2,591.7,2500,1247.8,2500z"
-                  />
-                </svg>
+
+      <main className="flex-1 pt-14 lg:pt-[60px]">
+        <div className="mx-auto w-full max-w-6xl px-4 py-8 md:px-6 md:py-10">
+          {/* Page header */}
+          <div className="animate-fade-in-up mb-8 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <div className="mb-2 font-mono text-[11px] uppercase tracking-[0.18em] text-mint">
+                dashboard
+              </div>
+              <h1 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
+                Onchain overview
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Wallet state, tokens, and NFTs on Base — live.
+              </p>
+            </div>
+
+            {/* Block-height chip */}
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-1 px-3 py-1.5">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inset-0 animate-ping rounded-full bg-mint opacity-60" />
+                <span className="relative h-2 w-2 rounded-full bg-mint" />
+              </span>
+              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
                 {isBlockHeightLoading ? (
-                  <span className="flex items-center">
-                    <Spinner size="sm" color="white" className="mr-2" />
-                    <span>Loading...</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Spinner size="sm" className="h-3 w-3" /> block · syncing
                   </span>
                 ) : blockHeightData?.blockNumber ? (
-                  `Block: ${blockHeightData.blockNumber.toLocaleString()}`
+                  <>block · {blockHeightData.blockNumber.toLocaleString()}</>
                 ) : (
-                  'Connecting...'
+                  "block · connecting"
                 )}
-              </Button>
+              </span>
             </div>
           </div>
 
-          {blockHeightError && (
-            <Alert variant="default" className="mb-4 bg-amber-500/10 text-amber-500 border-amber-500/50">
-              <AlertDescription>
-                Network status unavailable. Some data may not be current.
-              </AlertDescription>
-            </Alert>
-          )}
+          <div className="space-y-10">
+            {/* Wallet + tokens side-by-side on wide screens, stacked on mobile */}
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)]">
+              <section className="animate-fade-in-up space-y-3">
+                <SectionHeading eyebrow="wallet" title="Your Base wallet" />
+                <ErrorBoundary
+                  fallback={
+                    <div className="panel p-6 text-center text-sm text-muted-foreground">
+                      Unable to load wallet information.
+                    </div>
+                  }
+                >
+                  <WalletCard address={address} chain={base} />
+                </ErrorBoundary>
+              </section>
 
-          {/* Base Wallet Card and NFT Gallery */}
-          {address && (
-            <div className="w-full space-y-4">
+              <section className="animate-fade-in-up [animation-delay:80ms] space-y-3">
+                <SectionHeading eyebrow="balances" title="Tokens" />
+                <ErrorBoundary
+                  fallback={
+                    <div className="panel p-6 text-center text-sm text-muted-foreground">
+                      Unable to load token information.
+                    </div>
+                  }
+                >
+                  <TokenGallery />
+                </ErrorBoundary>
+              </section>
+            </div>
+
+            <section className="animate-fade-in-up [animation-delay:160ms] space-y-3">
+              <SectionHeading eyebrow="collectibles" title="NFT gallery" />
               <ErrorBoundary
                 fallback={
-                  <div className="p-4 border rounded-lg bg-background">
-                    <p className="text-center text-muted-foreground">
-                      Unable to load wallet information. Please try again later.
-                    </p>
-                  </div>
-                }
-              >
-                <WalletCard address={address} chain={base} />
-              </ErrorBoundary>
-              
-              <ErrorBoundary
-                fallback={
-                  <div className="p-4 border rounded-lg bg-background">
-                    <p className="text-center text-muted-foreground">
-                      Unable to load token information. Please try again later.
-                    </p>
-                  </div>
-                }
-              >
-                <TokenGallery />
-              </ErrorBoundary>
-              
-              <ErrorBoundary
-                fallback={
-                  <div className="p-4 border rounded-lg bg-background">
-                    <p className="text-center text-muted-foreground">
-                      Unable to load NFT information. Please try again later.
-                    </p>
+                  <div className="panel p-6 text-center text-sm text-muted-foreground">
+                    Unable to load NFT information.
                   </div>
                 }
               >
                 <NFTGallery />
               </ErrorBoundary>
-            </div>
-          )}
-        </main>
-      </div>
+            </section>
+          </div>
+        </div>
+      </main>
     </div>
   )
 }

@@ -1,260 +1,170 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
-import { useAccount } from "wagmi"
+import { useAuth } from "@/context/auth-context"
 import { Spinner } from "@/components/ui/spinner"
-import { ExternalLink, AlertCircle, Coins } from "lucide-react"
+import { ExternalLink, AlertCircle, Coins, Shield, ShieldOff } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 import { useTokens, type TokenData } from "@/hooks/use-tokens"
-import { useEffect } from "react"
-
-// CSS for the pulsating glow animation
-const pulsateCSS = `
-@keyframes pulsate {
-  0% {
-    box-shadow: 0 0 0 0 rgba(0, 82, 255, 0.5);
-  }
-  70% {
-    box-shadow: 0 0 0 10px rgba(0, 82, 255, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(0, 82, 255, 0);
-  }
-}
-
-.balance-pulsate {
-  animation: pulsate 1.5s infinite;
-  border-radius: 0.5rem;
-  padding: 0.25rem 0.5rem;
-  display: inline-block;
-}
-`;
+import { useEffect, useMemo, useState } from "react"
 
 export function TokenGallery() {
-  const { address } = useAccount()
+  const { address } = useAuth()
   const { data, isLoading, isError, error, refetch } = useTokens()
   const tokens = data?.tokens || []
+  const [showSpam, setShowSpam] = useState(false)
 
-  // Force refetch on mount and handle reconnection
-  useEffect(() => {
-    if (address) {
-      // First immediate refetch
-      refetch()
-      
-      // Staggered refetches to ensure data loads properly
-      const timeouts = [500, 1500, 3000].map(delay => 
-        setTimeout(() => {
-          if (address) {  // Only refetch if still connected
-            refetch()
-          }
-        }, delay)
-      )
-      
-      // Set up periodic refresh
-      const refreshInterval = setInterval(() => {
-        if (address) {
-          refetch()
-        }
-      }, 30000) // Refresh every 30 seconds
-      
-      return () => {
-        timeouts.forEach(timeout => clearTimeout(timeout))
-        clearInterval(refreshInterval)
-      }
-    }
-  }, [address, refetch])
+  const spamCount = useMemo(() => tokens.filter((t) => t.isSpam).length, [tokens])
 
-  // Add event listener for visibility changes
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && address) {
-        refetch()
-      }
-    }
+  // Only treat the query as "loading" when we have nothing to show yet.
+  // Background refetches shouldn't re-trigger the spinner.
+  const showLoading = isLoading && tokens.length === 0
 
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [address, refetch])
+  // No auto-refetch interval, no refetch on tab visibility change. Token
+  // balances are loaded once on mount and then only on explicit refetch()
+  // (e.g. after a successful swap). This stops the dashboard from flashing
+  // a "Loading…" state every few seconds.
 
-  // Format token balance based on decimals
   const formatTokenBalance = (balance: string, decimals: number) => {
     try {
-      const divisor = BigInt(10 ** decimals);
-      const bigIntBalance = BigInt(balance);
-      
-      // Integer division for the whole number part
-      const integerPart = bigIntBalance / divisor;
-      // Modulo to get remainder (fractional part)
-      const fractionalPart = bigIntBalance % divisor;
-      
-      // Convert to string with proper formatting
-      let result = integerPart.toString();
-      
-      // Only add decimal part if it's not zero
+      const divisor = BigInt(10 ** decimals)
+      const bigIntBalance = BigInt(balance)
+      const integerPart = bigIntBalance / divisor
+      const fractionalPart = bigIntBalance % divisor
+      let result = integerPart.toString()
       if (fractionalPart > 0) {
-        // Convert to string and pad with leading zeros
-        let fractionalStr = fractionalPart.toString().padStart(decimals, '0');
-        
-        // Trim trailing zeros
-        fractionalStr = fractionalStr.replace(/0+$/, '');
-        
+        let fractionalStr = fractionalPart.toString().padStart(decimals, "0").replace(/0+$/, "")
         if (fractionalStr.length > 0) {
-          // For small values, show more precision
-          if (integerPart === BigInt(0)) {
-            // Limit to 6 digits for small values
-            const digits = Math.min(6, fractionalStr.length);
-            result = `${result}.${fractionalStr.substring(0, digits)}`;
-          } else {
-            // Limit to 4 digits for larger values
-            const digits = Math.min(4, fractionalStr.length);
-            result = `${result}.${fractionalStr.substring(0, digits)}`;
-          }
+          const digits = integerPart === BigInt(0) ? Math.min(6, fractionalStr.length) : Math.min(4, fractionalStr.length)
+          result = `${result}.${fractionalStr.substring(0, digits)}`
         }
       }
-      
-      // Add commas for thousands
       if (integerPart >= BigInt(1000)) {
-        const intStr = integerPart.toString();
-        const withCommas = intStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-        result = result.replace(intStr, withCommas);
+        const intStr = integerPart.toString()
+        result = result.replace(intStr, intStr.replace(/\B(?=(\d{3})+(?!\d))/g, ","))
       }
-      
-      return result;
-    } catch (error) {
-      console.error('Error formatting token balance:', error);
-      return balance;
+      return result
+    } catch {
+      return balance
     }
   }
 
-  if (!address) {
-    return null
-  }
+  if (!address) return null
 
-  if (isLoading) {
+  if (showLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Token Balances</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center justify-center p-8">
-            <Spinner className="h-8 w-8 mb-4" />
-            <p className="text-muted-foreground">Loading tokens...</p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="panel p-8">
+        <div className="flex flex-col items-center justify-center gap-3">
+          <Spinner className="h-6 w-6" />
+          <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">loading tokens…</p>
+        </div>
+      </div>
     )
   }
 
   if (isError) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Token Balances</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>
-              {error instanceof Error ? error.message : "Failed to load tokens"}
-            </AlertDescription>
-          </Alert>
-          <div className="mt-4 flex justify-center">
-            <button
-              onClick={() => refetch()}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md"
-            >
-              Retry
-            </button>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="panel p-6">
+        <Alert variant="destructive" className="border-destructive/40 bg-destructive/10">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Failed to load tokens</AlertTitle>
+          <AlertDescription>
+            {error instanceof Error ? error.message : "Unknown error"}
+          </AlertDescription>
+        </Alert>
+        <div className="mt-4 flex justify-center">
+          <Button variant="outline" onClick={() => refetch()} className="border-border bg-surface-0 font-mono text-[11px] uppercase tracking-[0.18em]">
+            retry
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  const visibleTokens = tokens.filter((token: TokenData) => {
+    try {
+      if (BigInt(token.balance) === BigInt(0)) return false
+      if (token.name === "Unknown Token" && token.symbol === "???") return false
+      if (!showSpam && token.isSpam) return false
+      return true
+    } catch {
+      return true
+    }
+  })
+
+  const SpamToggle = spamCount > 0 ? (
+    <button
+      onClick={() => setShowSpam((v) => !v)}
+      className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-1 px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:border-mint/50 hover:text-mint"
+      title={showSpam ? "Hide flagged spam" : "Show flagged spam"}
+    >
+      {showSpam ? <ShieldOff className="h-3 w-3" /> : <Shield className="h-3 w-3 text-mint" />}
+      {showSpam ? `hide spam · ${spamCount}` : `${spamCount} hidden`}
+    </button>
+  ) : null
+
+  if (visibleTokens.length === 0) {
+    return (
+      <div className="panel p-8 text-center">
+        <Coins className="mx-auto mb-3 h-6 w-6 text-muted-foreground" />
+        <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">
+          {spamCount > 0 && !showSpam ? "all tokens filtered as spam" : "no tokens on this wallet"}
+        </p>
+        {SpamToggle && <div className="mt-4 flex justify-center">{SpamToggle}</div>}
+      </div>
     )
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Token Balances</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {tokens.length === 0 ? (
-          <p className="text-muted-foreground">No tokens found</p>
-        ) : (
-          <div className="space-y-4">
-            {tokens
-              .filter(token => {
-                // Additional check to filter out tokens with 0 balance or unknown names
-                try {
-                  // Try to convert the balance to a number for comparison
-                  const bigIntBalance = BigInt(token.balance);
-                  if (bigIntBalance === BigInt(0)) {
-                    return false;
-                  }
-                  
-                  // Skip tokens with unhelpful names
-                  if (token.name === 'Unknown Token' && token.symbol === '???') {
-                    return false;
-                  }
-                  
-                  return true;
-                } catch (error) {
-                  // If there's an error parsing the balance, keep the token
-                  return true;
-                }
-              })
-              .map((token) => (
-                <div
-                  key={token.contractAddress}
-                  className="flex items-center p-3 border rounded-lg hover:bg-muted transition-colors"
-                >
-                  <div className="mr-4">
-                    {token.logo ? (
-                      <img
-                        src={token.logo}
-                        alt={token.symbol}
-                        className="w-10 h-10 rounded-full"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none'
-                        }}
-                      />
-                    ) : (
-                      <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center">
-                        <Coins className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-medium">{token.name}</div>
-                    <div className="text-sm text-muted-foreground">{token.symbol}</div>
-                  </div>
-                  <div className="text-right">
-                    <style>{pulsateCSS}</style>
-                    <div className={cn(
-                      "font-medium font-mono balance-pulsate bg-black/5 dark:bg-white/5 text-primary",
-                    )}>
-                      {formatTokenBalance(token.balance, token.decimals)}
-                    </div>
-                    <a 
-                      href={`https://basescan.org/token/${token.contractAddress}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-end gap-1 text-xs text-muted-foreground hover:text-primary mt-1"
-                    >
-                      <span>View</span>
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  </div>
-                </div>
-              ))}
+    <div className="space-y-3">
+      {SpamToggle && <div className="flex justify-end">{SpamToggle}</div>}
+      <div className="panel divide-y divide-border overflow-hidden">
+        {visibleTokens.map((token: TokenData) => (
+        <div
+          key={token.contractAddress}
+          className={`group grid grid-cols-[auto_1fr_auto] items-center gap-4 px-5 py-4 transition-colors hover:bg-surface-2/50 ${token.isSpam ? "opacity-60" : ""}`}
+        >
+          <div className="h-9 w-9 overflow-hidden rounded-full border border-border bg-surface-0">
+            {token.logo ? (
+              <img
+                src={token.logo}
+                alt={token.symbol}
+                className="h-full w-full object-cover"
+                onError={(e) => {
+                  ;(e.target as HTMLImageElement).style.display = "none"
+                }}
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center">
+                <Coins className="h-4 w-4 text-muted-foreground" />
+              </div>
+            )}
           </div>
-        )}
-      </CardContent>
-    </Card>
+
+          <div className="min-w-0">
+            <div className="truncate font-display text-sm font-semibold text-foreground">{token.name}</div>
+            <div className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+              {token.symbol}
+            </div>
+          </div>
+
+          <div className="text-right">
+            <div className="font-mono text-sm tabular-nums text-mint">
+              {formatTokenBalance(token.balance, token.decimals)}
+            </div>
+            <a
+              href={`https://basescan.org/token/${token.contractAddress}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-mint"
+            >
+              basescan
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
+        </div>
+        ))}
+      </div>
+    </div>
   )
-} 
+}

@@ -4,50 +4,61 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 200 38% 45%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 203 34% 45%; /* #4A7E9B - accent color */
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 203 34% 45%; /* #4A7E9B - accent color */
+    /* Aligned with brassey.io tokens */
+    --background: 210 20% 1%;
+    --foreground: 210 40% 94%;
+    --card: 300 4% 6%;
+    --card-foreground: 210 40% 94%;
+    --popover: 300 4% 6%;
+    --popover-foreground: 210 40% 94%;
+    --primary: 201 37% 48%;
+    --primary-foreground: 210 20% 1%;
+    --secondary: 201 37% 48%;
+    --secondary-foreground: 210 40% 94%;
+    --muted: 300 4% 12%;
+    --muted-foreground: 215 20% 55%;
+    --accent: 201 37% 48%;          /* #4B7F9B steel blue */
+    --accent-foreground: 210 20% 1%;
+    --mint: 201 37% 48%;            /* mint aliased to steel blue for legacy refs */
+    --mint-foreground: 210 20% 1%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 210 40% 94%;
+    --border: 300 4% 12%;
+    --input: 300 4% 12%;
+    --ring: 201 37% 48%;
     --radius: 0.5rem;
-    --sidebar-background: 0 0% 100%; /* Match card color */
+    --surface-0: 210 20% 2%;       /* body-ish */
+    --surface-1: 300 4% 8%;        /* card */
+    --surface-2: 300 4% 12%;       /* muted block */
+    --sidebar-background: 300 4% 6%;
   }
 
   .dark {
-    --background: 192 40% 1.5%; /* #020506 - very dark background */
-    --foreground: 0 0% 98%;
-    --card: 213 9% 8%; /* #0E1115 - dark gray for cards */
-    --card-foreground: 0 0% 98%;
-    --popover: 213 9% 8%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 200 38% 45%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 203 34% 45%; /* #4A7E9B - accent color */
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 203 34% 45%; /* #4A7E9B - accent color */
-    --sidebar-background: 213 9% 8%; /* Match card color */
+    --background: 210 20% 1%;
+    --foreground: 210 40% 94%;
+    --card: 300 4% 6%;
+    --card-foreground: 210 40% 94%;
+    --popover: 300 4% 6%;
+    --popover-foreground: 210 40% 94%;
+    --primary: 201 37% 48%;
+    --primary-foreground: 210 20% 1%;
+    --secondary: 201 37% 48%;
+    --secondary-foreground: 210 40% 94%;
+    --muted: 300 4% 12%;
+    --muted-foreground: 215 20% 55%;
+    --accent: 201 37% 48%;
+    --accent-foreground: 210 20% 1%;
+    --mint: 201 37% 48%;
+    --mint-foreground: 210 20% 1%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 210 40% 94%;
+    --border: 300 4% 12%;
+    --input: 300 4% 12%;
+    --ring: 201 37% 48%;
+    --surface-0: 210 20% 2%;
+    --surface-1: 300 4% 8%;
+    --surface-2: 300 4% 12%;
+    --sidebar-background: 300 4% 6%;
   }
 }
 
@@ -55,233 +66,138 @@
   * {
     @apply border-border;
   }
+  html,
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  ::selection {
+    background-color: hsl(var(--accent) / 0.35);
+    color: hsl(var(--foreground));
   }
 }
 
-/* Force sidebar to use card background color */
+@layer components {
+  /* Ambient background — brassey.io style: near-black with a very subtle
+     scanline overlay + gentle radial vignettes in the steel-blue family. */
+  .ambient-bg {
+    position: relative;
+    isolation: isolate;
+  }
+  .ambient-bg::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -2;
+    background-image:
+      linear-gradient(hsl(var(--border) / 0.35) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border) / 0.35) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black 40%, transparent 80%);
+    opacity: 0.35;
+  }
+  .ambient-bg::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -1;
+    background:
+      radial-gradient(ellipse 60% 60% at 20% 10%, hsl(var(--accent) / 0.08), transparent 60%),
+      radial-gradient(ellipse 60% 60% at 85% 90%, hsl(var(--accent) / 0.06), transparent 60%),
+      repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        hsl(var(--accent) / 0.012) 2px,
+        hsl(var(--accent) / 0.012) 4px
+      );
+  }
+
+  /* Wordmark: base = white, brassey = #4B7F9B, .io = slate */
+  .wordmark-base { color: hsl(var(--foreground)); }
+  .wordmark-brassey { color: #4B7F9B; }
+  .wordmark-io, .wordmark-dot { color: rgb(100 116 139); } /* slate-500 */
+
+  /* Status badge: small dot + label */
+  .status-badge {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-surface-1 px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground;
+  }
+  .status-badge::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: hsl(var(--accent));
+    box-shadow: 0 0 10px hsl(var(--accent) / 0.8);
+    animation: pulse-dot 1.6s ease-in-out infinite;
+  }
+
+  .panel {
+    @apply relative overflow-hidden rounded-[var(--radius)] border border-border bg-surface-1;
+  }
+  .panel-outline {
+    @apply rounded-[var(--radius)] border border-border/80 bg-transparent;
+  }
+  .panel-hover {
+    transition: border-color 200ms ease, transform 200ms ease, box-shadow 200ms ease;
+  }
+  .panel-hover:hover {
+    border-color: hsl(var(--accent) / 0.45);
+    box-shadow: 0 0 0 1px hsl(var(--accent) / 0.12), 0 10px 30px -15px hsl(var(--accent) / 0.2);
+  }
+
+  /* Linux terminal chrome (brassey.io style) */
+  .term-window {
+    @apply rounded-md border overflow-hidden;
+    border-color: #1F1D20;
+    background: #1F1D20;
+  }
+  .term-window:hover { border-color: rgba(75,127,155,0.3); }
+  .term-header {
+    @apply flex items-center justify-between px-3 py-1.5 border-b;
+    border-color: #1F1D20;
+    background: #1a1a1e;
+  }
+  .term-body {
+    @apply p-4 sm:p-5 space-y-2 text-[12px] sm:text-[13px] leading-[1.75];
+    background: #1F1D20;
+  }
+
+  /* Social-link chrome kept from previous revision */
+  .social-links-container > div { display: flex; gap: 10px; }
+  .social-links-container a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--surface-1));
+    transition: border-color 200ms ease, color 200ms ease, transform 200ms ease;
+  }
+  .social-links-container a:hover {
+    border-color: hsl(var(--accent) / 0.6);
+    color: hsl(var(--accent));
+    transform: translateY(-1px);
+  }
+  .social-links-container svg {
+    width: 14px;
+    height: 14px;
+    color: hsl(var(--foreground));
+    fill: currentColor;
+  }
+}
+
 [data-sidebar="sidebar"] {
   background-color: hsl(var(--card)) !important;
 }
 
-/* Target all sidebar elements more aggressively */
-.bg-sidebar, 
-div[data-sidebar="sidebar"], 
-[data-sidebar], 
-[class*="bg-sidebar"],
-[data-sidebar] *,
-[data-state="expanded"] [data-sidebar="sidebar"],
-[data-state="collapsed"] [data-sidebar="sidebar"] {
-  background-color: hsl(var(--card)) !important;
-}
-
-/* Enhanced styling for the IdentityCard component */
-.identity-card-wrapper {
-  --onchainkit-card-padding: 0;
-  --onchainkit-card-border: none;
-  --onchainkit-card-shadow: none;
-  --onchainkit-card-radius: 0;
-}
-
-.identity-card-wrapper :global(.onchainkit-identity-card) {
-  padding: 0;
-  border: none;
-  box-shadow: none;
-}
-
-.identity-card-wrapper :global(.onchainkit-identity-card-avatar) {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  overflow: hidden;
-  transition: transform 0.2s ease-in-out;
-}
-
-.identity-card-wrapper :global(.onchainkit-identity-card-avatar):hover {
-  transform: scale(1.05);
-  cursor: pointer;
-}
-
-.identity-card-wrapper :global(.onchainkit-identity-card-name) {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin: 0.75rem 0 0.25rem;
-  transition: color 0.2s ease-in-out;
-}
-
-.identity-card-wrapper :global(.onchainkit-identity-card-name):hover {
-  color: hsl(var(--primary));
-  cursor: pointer;
-}
-
-.identity-card-wrapper :global(.onchainkit-identity-card-address) {
-  font-size: 0.875rem;
-  color: hsl(var(--muted-foreground));
-  transition: color 0.2s ease-in-out;
-}
-
-.identity-card-wrapper :global(.onchainkit-identity-card-address):hover {
-  color: hsl(var(--primary));
-  cursor: pointer;
-}
-
-/* Styling for the Socials component */
-.socials-wrapper {
-  margin-top: 0.5rem;
-  position: relative;
-}
-
-/* Revert to default style and let OnchainKit handle it */
-.socials-wrapper :global(.onchainkit-socials) {
-  display: flex;
-  gap: 0.75rem;
-}
-
-.socials-wrapper :global(.onchainkit-social-link) {
-  color: inherit;
-}
-
-.socials-wrapper :global(.onchainkit-social-link):hover {
-  opacity: 0.8;
-}
-
-.socials-wrapper :global(.onchainkit-social-link-icon) {
-  width: 1.25rem;
-  height: 1.25rem;
-}
-
-@keyframes pulse-border {
-  0% {
-    box-shadow: 0 0 0 0 hsl(var(--accent) / 0.4);
-    border-color: hsl(var(--accent) / 0.5);
-  }
-  25% {
-    border-color: hsl(var(--accent) / 0.3);
-  }
-  50% {
-    box-shadow: 0 0 0 2px hsl(var(--accent) / 0.1);
-    border-color: hsl(var(--accent) / 0.2);
-  }
-  75% {
-    border-color: hsl(var(--accent) / 0.3);
-  }
-  100% {
-    box-shadow: 0 0 0 0 hsl(var(--accent) / 0.4);
-    border-color: hsl(var(--accent) / 0.5);
-  }
-}
-
-.pulsating-border {
-  animation: pulse-border 4s infinite ease-in-out;
-  border: 2px solid hsl(var(--accent) / 0.5);
-  border-radius: var(--radius);
-  transition: all 0.2s ease-in-out;
-}
-
-.pulsating-border:hover {
-  border-color: hsl(var(--accent) / 0.8);
-  box-shadow: 0 0 0 2px hsl(var(--accent) / 0.2);
-}
-
-/* Force color on all social links */
-a[href*="twitter.com"],
-a[href*="github.com"],
-a[href*="t.me"],
-a[href*="mirror.xyz"],
-a[href*="lens.xyz"],
-a[href*="farcaster"],
-.socials-wrapper :global(a) {
-  color: #4A7E9B;
-}
-
-/* Fix for individual social providers */
-.socials-wrapper :global(.icon-github),
-.socials-wrapper :global(.icon-twitter),
-.socials-wrapper :global(.icon-lens),
-.socials-wrapper :global(.icon-farcaster),
-.socials-wrapper :global(.icon-website),
-.socials-wrapper :global(.icon-telegram),
-.socials-wrapper :global(.icon-mirror) {
-  color: #4A7E9B;
-}
-
-/* Target all SVG elements regardless of their parent class names */
-.socials-wrapper svg {
-  color: #4A7E9B;
-  fill: #4A7E9B;
-}
-
-/* OnchainKit social links fixes */
-[data-enhanced-socials="true"] > div {
-  display: flex !important;
-  gap: 8px !important;
-}
-
-[data-enhanced-socials="true"] a {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  width: 26px !important;
-  height: 26px !important;
-}
-
-[data-enhanced-socials="true"] svg {
-  width: 18px !important;
-  height: 18px !important;
-  color: #4A7E9B;
-}
-
-/* OnchainKit Socials Component Styling */
-.social-links-container > div {
-  display: flex;
-  gap: 8px;
-}
-
-.social-links-container a {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-}
-
-.social-links-container svg {
-  width: 18px;
-  height: 18px;
-  color: #4A7E9B !important;
-  fill: currentColor !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-}
-
-.social-links-container path {
-  fill: currentColor !important;
-  color: #4A7E9B !important;
-  stroke: #4A7E9B !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-}
-
-.social-links-container a:hover {
-  opacity: 0.8;
-}
-
-/* Force visibility for all OnchainKit social links */
-[class*="onchainkit"] svg,
-[class*="onchainkit"] path,
-[class*="onchainkit"] g {
-  color: #4A7E9B !important;
-  fill: currentColor !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-}
-
-/* Ensure icons that might use stroke instead of fill are visible */
-[class*="onchainkit"] svg path,
-[class*="onchainkit"] svg circle,
-[class*="onchainkit"] svg rect {
-  stroke: #4A7E9B !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-}
+/* Scrollbar — brassey.io match */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: #000102; }
+::-webkit-scrollbar-thumb { background: rgba(75, 127, 155, 0.2); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(75, 127, 155, 0.5); }

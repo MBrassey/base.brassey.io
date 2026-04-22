@@ -4,6 +4,7 @@ import { type ReactNode, useEffect, useState } from "react"
 import { User } from "lucide-react"
 import { base } from "viem/chains"
 import dynamic from "next/dynamic"
+import { useQuery } from "@tanstack/react-query"
 import { ErrorBoundary } from "./error-boundary"
 import Link from "next/link"
 import { Twitter, Globe, Github, ExternalLink } from "lucide-react"
@@ -97,123 +98,130 @@ function IdentityCardFallback({ address }: { address: string }) {
   )
 }
 
-// Base Avatar component that uses OnchainKit's Avatar
+/**
+ * Deterministic, on-brand gradient avatar — always the mint → steel family,
+ * rotated deterministically by address so each wallet gets a distinct-but-
+ * coherent tile. No network, no loading states, always paints.
+ */
+function brandGradient(addr: string) {
+  if (!addr) return "linear-gradient(135deg,#4B7F9B,#1F1D20)"
+  let hash = 0
+  for (let i = 0; i < addr.length; i++) hash = addr.charCodeAt(i) + ((hash << 5) - hash)
+  const angle = Math.abs(hash % 360)
+  // brassey.io palette: steel #4B7F9B, deep surface #1F1D20, card #0f0e10.
+  return `linear-gradient(${angle}deg, #4B7F9B 0%, #1F1D20 70%, #0f0e10 100%)`
+}
+
+function InitialsAvatar({
+  address,
+  size,
+  className = "",
+}: {
+  address: string
+  size: "sm" | "md" | "lg"
+  className?: string
+}) {
+  const pxMap = { sm: 32, md: 48, lg: 64 } as const
+  const fontMap = { sm: 11, md: 14, lg: 18 } as const
+  const px = pxMap[size]
+  const fontPx = fontMap[size]
+  const initials = address ? address.substring(2, 4).toUpperCase() : "··"
+
+  // Resolve the Basename avatar through our server proxy, which calls
+  // Coinbase's identity endpoint. wagmi's useEnsAvatar can't reach Base
+  // Basenames without custom resolver config, so this is the reliable path.
+  const { data: identity } = useQuery<{ name: string | null; avatar: string | null }>({
+    queryKey: ["basename-avatar", address],
+    queryFn: async () => {
+      if (!address) return { name: null, avatar: null }
+      const res = await fetch(`/api/avatar?address=${address}`)
+      if (!res.ok) return { name: null, avatar: null }
+      return res.json()
+    },
+    enabled: !!address,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    retry: 1,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  })
+
+  const avatarUrl = identity?.avatar ?? null
+  const [imgOk, setImgOk] = useState(true)
+
+  return (
+    <div
+      className={`relative shrink-0 flex items-center justify-center ${className}`}
+      style={{
+        width: `${px}px`,
+        height: `${px}px`,
+        minWidth: `${px}px`,
+        minHeight: `${px}px`,
+        borderRadius: "9999px",
+        overflow: "hidden",
+        background: brandGradient(address),
+        boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08)",
+      }}
+    >
+      {/* Initials layer — always rendered; image paints on top when available */}
+      <span
+        style={{
+          fontFamily: "var(--font-mono), ui-monospace, monospace",
+          fontWeight: 700,
+          fontSize: `${fontPx}px`,
+          letterSpacing: "0.06em",
+          color: "#ffffff",
+          textShadow: "0 1px 2px rgba(0,0,0,0.45)",
+          lineHeight: 1,
+        }}
+      >
+        {initials}
+      </span>
+
+      {avatarUrl && imgOk && (
+        <img
+          src={avatarUrl}
+          alt=""
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+          }}
+          onError={() => setImgOk(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+
+/**
+ * Base Avatar component.
+ *
+ * Renders OnchainKit's Avatar but races it against a 2.5s timeout — if the
+ * component never fires its child image or calls onError, we swap to a
+ * deterministic gradient+initials tile instead of staying stuck in a
+ * loading/blank state. That was the source of the "blank avatar" bug in
+ * the header and on the profile page.
+ */
+/**
+ * Primary avatar for the app. Renders a deterministic on-brand gradient
+ * tile with mono initials — no OnchainKit fetch, no loading spinner, no
+ * blank frame. This is the design, not a fallback.
+ */
 export function BaseAvatar({
   address,
   size = "md",
   className = "",
-  children,
 }: {
   address: string
   size?: "sm" | "md" | "lg"
   className?: string
   children?: ReactNode
 }) {
-  const [isMounted, setIsMounted] = useState(false)
-  const [hasError, setHasError] = useState(false)
-  const [addressFormatted, setAddressFormatted] = useState<`0x${string}` | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-
-  const sizeMap = {
-    sm: "h-8 w-8",
-    md: "h-12 w-12",
-    lg: "h-16 w-16",
-  }
-
-  const sizeClass = sizeMap[size] || sizeMap.md
-
-  // Create a manual fallback avatar with the same address
-  const generateAvatarBg = (addr: string) => {
-    // Simple hash function
-    let hash = 0;
-    for (let i = 0; i < addr.length; i++) {
-      hash = addr.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    
-    // Generate hue (0-360)
-    const h = Math.abs(hash % 360);
-    // Saturation and lightness
-    const s = 70;
-    const l = 55;
-    
-    return `hsl(${h}, ${s}%, ${l}%)`;
-  };
-
-  useEffect(() => {
-    setIsMounted(true)
-    setIsLoading(true)
-    let isMounted = true;
-    
-    if (address) {
-      try {
-        // Format address to ensure it starts with 0x
-        const formattedAddr = address.startsWith('0x') 
-          ? address as `0x${string}` 
-          : `0x${address}` as `0x${string}`
-        
-        if (isMounted) {
-          setAddressFormatted(formattedAddr)
-          // Wait briefly for the dynamic component to load
-          setTimeout(() => {
-            if (isMounted) {
-              setIsLoading(false)
-            }
-          }, 500)
-        }
-      } catch (e) {
-        if (isMounted) {
-          setHasError(true)
-          setIsLoading(false)
-        }
-      }
-    }
-    
-    return () => {
-      isMounted = false;
-    };
-  }, [address])
-
-  // Use the fallback when loading, has error, or address isn't formatted
-  if (isLoading || !isMounted || hasError || !address || !addressFormatted) {
-    // Custom fallback with user address initials
-    return (
-      <div 
-        className={`${sizeClass} rounded-full overflow-hidden flex items-center justify-center`}
-        style={{ backgroundColor: address ? generateAvatarBg(address) : '#4A7E9B' }}
-      >
-        <div className="text-white font-bold" style={{ fontSize: size === 'sm' ? '14px' : size === 'lg' ? '22px' : '18px' }}>
-          {address ? address.substring(2, 4).toUpperCase() : '??'}
-        </div>
-      </div>
-    )
-  }
-
-  // Use the OnchainKit avatar when everything is ready
-  return (
-    <ErrorBoundary 
-      fallback={
-        <div 
-          className={`${sizeClass} rounded-full overflow-hidden flex items-center justify-center`}
-          style={{ backgroundColor: generateAvatarBg(address) }}
-        >
-          <div className="text-white font-bold" style={{ fontSize: size === 'sm' ? '14px' : size === 'lg' ? '22px' : '18px' }}>
-            {address.substring(2, 4).toUpperCase()}
-          </div>
-        </div>
-      }
-    >
-      <div className={`${sizeClass} rounded-full overflow-hidden ${className}`}>
-        <DynamicAvatar
-          address={addressFormatted}
-          chain={base}
-          className={sizeClass}
-          onError={() => setHasError(true)}
-        >
-          {children}
-        </DynamicAvatar>
-      </div>
-    </ErrorBoundary>
-  )
+  return <InitialsAvatar address={address} size={size} className={className} />
 }
 
 // Update BaseSocials component
@@ -363,63 +371,14 @@ export function BaseName({
   )
 }
 
-// Safe Avatar component that uses OnchainKit's Avatar
-export function SafeAvatar({
-  address,
-  size = "md",
-  className = "",
-  children,
-}: {
+// Safe Avatar shares the same robust fallback as BaseAvatar.
+export function SafeAvatar(props: {
   address: string
   size?: "sm" | "md" | "lg"
   className?: string
   children?: ReactNode
 }) {
-  const [isMounted, setIsMounted] = useState(false)
-  const [hasError, setHasError] = useState(false)
-  const [addressFormatted, setAddressFormatted] = useState<`0x${string}` | null>(null)
-
-  const sizeMap = {
-    sm: "h-8 w-8",
-    md: "h-12 w-12",
-    lg: "h-16 w-16",
-  }
-
-  const sizeClass = sizeMap[size] || sizeMap.md
-
-  useEffect(() => {
-    setIsMounted(true)
-    if (address) {
-      try {
-        // Format address to ensure it starts with 0x
-        const formattedAddr = address.startsWith('0x') 
-          ? address as `0x${string}` 
-          : `0x${address}` as `0x${string}`
-        setAddressFormatted(formattedAddr)
-      } catch (e) {
-        setHasError(true)
-      }
-    }
-  }, [address])
-
-  if (!isMounted || hasError || !address || !addressFormatted) {
-    return <AvatarFallback size={size} />
-  }
-
-  return (
-    <ErrorBoundary fallback={<AvatarFallback size={size} />}>
-      <div className={`${sizeClass} rounded-full overflow-hidden ${className}`}>
-        <DynamicAvatar
-          address={addressFormatted}
-          chain={base}
-          className={sizeClass}
-          onError={() => setHasError(true)}
-        >
-          {children}
-        </DynamicAvatar>
-      </div>
-    </ErrorBoundary>
-  )
+  return <BaseAvatar {...props} />
 }
 
 // Safe Name component that uses OnchainKit's Name

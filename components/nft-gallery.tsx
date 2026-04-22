@@ -2,63 +2,33 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useAccount } from "wagmi"
+import { useAuth } from "@/context/auth-context"
 import type { OwnedNft } from "alchemy-sdk"
 import { Spinner } from "@/components/ui/spinner"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { AlertCircle } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useNFTs, ExtendedNft as NFT } from "@/hooks/use-nfts"
-import { useEffect } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Image from "next/image"
+import { Shield, ShieldOff } from "lucide-react"
 
 // Contract addresses for special handling
 const CHART_CONTRACT_ADDRESS = "0xb679683E562b183161d5f3F93c6fA1d3115c4D30"
 const CHART_PREVIEW_URL = "https://charts-by-jvmi-jet.vercel.app/?values=[30,9,57,99,79,51,63]&palette=blue"
 
 export function NFTGallery() {
-  const { address } = useAccount()
+  const { address } = useAuth()
   const { data, isLoading, isError, error, refetch } = useNFTs()
   const nfts = data?.nfts || [] as NFT[]
+  const [showSpam, setShowSpam] = useState(false)
+  const spamCount = useMemo(() => nfts.filter((n: NFT) => n.isSpam && !n.isBasename).length, [nfts])
+  const showLoading = isLoading && nfts.length === 0
 
-  // Force refetch on mount and handle reconnection
-  useEffect(() => {
-    if (address) {
-      // Initial fetch
-      refetch()
-      
-      // One additional fetch after a short delay to ensure everything loaded
-      const retryTimeout = setTimeout(() => {
-        if (address && (!data?.nfts || data.nfts.length === 0)) {
-          console.log("No NFTs found on initial load, trying one more time...")
-          refetch()
-        }
-      }, 2000)
-      
-      return () => {
-        clearTimeout(retryTimeout)
-      }
-    }
-  }, [address, refetch, data?.nfts])
-
-  // Only refetch when coming back to the tab if we don't have any NFTs
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (
-        document.visibilityState === 'visible' && 
-        address && 
-        (!data?.nfts || data.nfts.length === 0)
-      ) {
-        console.log("Tab visible again and no NFTs loaded, retrying fetch...")
-        refetch()
-      }
-    }
-
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [address, refetch, data?.nfts])
+  // React Query handles the initial fetch when the query is enabled.
+  // We deliberately skip both the interval refetch and the tab-visibility
+  // refetch: NFTs rarely change while the user is looking at the page,
+  // and the extra refetches caused the UI to flash "loading" every few seconds.
 
   if (!address) {
     return null
@@ -74,46 +44,36 @@ export function NFTGallery() {
     isBasename: nft.isBasename
   })));
   
-  if (isLoading) {
+  if (showLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>NFT Gallery</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center justify-center p-8">
-            <Spinner className="h-8 w-8 mb-4" />
-            <p className="text-muted-foreground">Loading NFTs...</p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="panel p-8">
+        <div className="flex flex-col items-center justify-center gap-3">
+          <Spinner className="h-6 w-6" />
+          <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">loading nfts…</p>
+        </div>
+      </div>
     )
   }
 
   if (isError) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>NFT Gallery</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>
-              {error instanceof Error ? error.message : "Failed to load NFTs"}
-            </AlertDescription>
-          </Alert>
-          <div className="mt-4 flex justify-center">
-            <button
-              onClick={() => refetch()}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md"
-            >
-              Retry
-            </button>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="panel p-6">
+        <Alert variant="destructive" className="border-destructive/40 bg-destructive/10">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Failed to load NFTs</AlertTitle>
+          <AlertDescription>
+            {error instanceof Error ? error.message : "Unknown error"}
+          </AlertDescription>
+        </Alert>
+        <div className="mt-4 flex justify-center">
+          <button
+            onClick={() => refetch()}
+            className="rounded-md border border-border bg-surface-0 px-4 py-2 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:border-mint/50 hover:text-mint"
+          >
+            retry
+          </button>
+        </div>
+      </div>
     )
   }
 
@@ -136,10 +96,15 @@ export function NFTGallery() {
     if (nft.isBasename === true) {
       return true;
     }
-    
+
     // Special case NFTs should always be shown
     if (nft.contract.address.toLowerCase() === CHART_CONTRACT_ADDRESS.toLowerCase()) {
       return true;
+    }
+
+    // Drop Alchemy-flagged spam unless the toggle is on
+    if (nft.isSpam && !showSpam) {
+      return false;
     }
     
     // Show NFT if it has any identifying information
@@ -177,10 +142,28 @@ export function NFTGallery() {
     }
   });
 
+  const SpamToggle = spamCount > 0 ? (
+    <div className="flex justify-end">
+      <button
+        onClick={() => setShowSpam((v) => !v)}
+        className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-1 px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:border-mint/50 hover:text-mint"
+        title={showSpam ? "Hide flagged spam" : "Show flagged spam"}
+      >
+        {showSpam ? <ShieldOff className="h-3 w-3" /> : <Shield className="h-3 w-3 text-mint" />}
+        {showSpam ? `hide spam · ${spamCount}` : `${spamCount} hidden`}
+      </button>
+    </div>
+  ) : null
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {SpamToggle}
       {dedupedNfts.length === 0 ? (
-        <p className="text-muted-foreground">No NFTs found</p>
+        <div className="panel p-8 text-center">
+          <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">
+            {spamCount > 0 && !showSpam ? "all nfts filtered as spam" : "no nfts found"}
+          </p>
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {dedupedNfts.map((nft: NFT) => {
@@ -196,9 +179,9 @@ export function NFTGallery() {
               return (
                 <div
                   key={uniqueKey}
-                  className="bg-[#111111] rounded-xl overflow-hidden border border-[#303339] hover:shadow-lg transition-all duration-300"
+                  className="panel panel-hover overflow-hidden rounded-[var(--radius)]"
                 >
-                  <div className="aspect-square relative bg-[#111111] overflow-hidden">
+                  <div className="aspect-square relative bg-surface-0 overflow-hidden">
                     <div className="absolute inset-0 flex items-center justify-center">
                       <iframe
                         src={CHART_PREVIEW_URL}
@@ -219,14 +202,14 @@ export function NFTGallery() {
                         <h3 className="text-sm font-semibold text-white truncate">
                           {chartTitle}
                         </h3>
-                        <p className="text-sm text-[#8A939B] truncate">
+                        <p className="text-sm text-muted-foreground truncate">
                           {chartDescription}
                         </p>
                       </div>
                     </div>
                     {nft.contract.name && (
                       <div className="flex items-center justify-between">
-                        <p className="text-xs text-[#8A939B]">
+                        <p className="text-xs text-muted-foreground">
                           {nft.contract.name}
                         </p>
                       </div>
@@ -249,10 +232,10 @@ export function NFTGallery() {
               return (
                 <div
                   key={uniqueKey}
-                  className="bg-[#111111] rounded-xl overflow-hidden border border-[#303339] hover:shadow-lg transition-all duration-300"
+                  className="panel panel-hover overflow-hidden rounded-[var(--radius)]"
                 >
-                  <div className="aspect-square relative bg-[#111111] overflow-hidden">
-                    <div className="w-full h-full flex items-center justify-center bg-[#111111]">
+                  <div className="aspect-square relative bg-surface-0 overflow-hidden">
+                    <div className="w-full h-full flex items-center justify-center bg-surface-0">
                       <img
                         src={imageUrl}
                         alt="Basename NFT"
@@ -268,10 +251,10 @@ export function NFTGallery() {
                   <div className="p-3">
                     <div className="flex items-center justify-between">
                       <div className="truncate w-full text-center">
-                        <p className="text-[13px] text-[#8A939B] truncate">
+                        <p className="text-[13px] text-muted-foreground truncate">
                           Basenames #{displayTokenId}
                         </p>
-                        <p className="text-[13px] text-[#8A939B] truncate">
+                        <p className="text-[13px] text-muted-foreground truncate">
                           {description}
                         </p>
                       </div>
@@ -330,7 +313,7 @@ export function NFTGallery() {
             return (
               <div
                 key={uniqueKey}
-                className="bg-[#111111] rounded-xl overflow-hidden border border-[#303339] hover:shadow-lg transition-all duration-300"
+                className="panel panel-hover overflow-hidden rounded-[var(--radius)]"
               >
                 <div className="aspect-square relative">
                   {!imageUrl ? (
@@ -339,10 +322,10 @@ export function NFTGallery() {
                     >
                       <div>
                         <h3 className="text-lg font-bold text-white">{nftTitle}</h3>
-                        <p className="text-xs text-[#8A939B] mt-2">
+                        <p className="text-xs text-muted-foreground mt-2">
                           {nft.contract?.name || (isBasenameNFT ? "Basenames" : "Unknown Collection")}
                         </p>
-                        <div className="mt-3 text-xs px-2 py-1 bg-[#303339]/20 rounded-full inline-block text-[#8A939B]">
+                        <div className="mt-3 text-xs px-2 py-1 bg-surface-2/20 rounded-full inline-block text-muted-foreground">
                           {isBasenameNFT 
                             ? "Basename" 
                             : `#${nft.tokenId || "??"}`}
@@ -350,7 +333,7 @@ export function NFTGallery() {
                       </div>
                     </div>
                   ) : (isSvg || isInteractiveWeb) ? (
-                    <div className="w-full h-full flex items-center justify-center bg-[#111111]">
+                    <div className="w-full h-full flex items-center justify-center bg-surface-0">
                       <iframe
                         src={imageUrl}
                         className="w-full h-full"
@@ -368,7 +351,7 @@ export function NFTGallery() {
                       />
                     </div>
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-[#111111] overflow-hidden">
+                    <div className="w-full h-full flex items-center justify-center bg-surface-0 overflow-hidden">
                       <img
                         src={imageUrl}
                         alt={nftTitle}
@@ -388,14 +371,14 @@ export function NFTGallery() {
                       <h3 className="text-sm font-semibold text-white truncate">
                         {nftTitle}
                       </h3>
-                      <p className="text-sm text-[#8A939B] truncate">
+                      <p className="text-sm text-muted-foreground truncate">
                         {nftDescription}
                       </p>
                     </div>
                   </div>
                   {nft.contract?.name && nft.contract.name !== "Basenames" && (
                     <div className="flex items-center justify-between">
-                      <p className="text-xs text-[#8A939B]">
+                      <p className="text-xs text-muted-foreground">
                         {nft.contract.name}
                       </p>
                     </div>

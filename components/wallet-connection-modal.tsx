@@ -19,23 +19,17 @@ import { coinbaseWallet, walletConnect } from "wagmi/connectors"
 import { createConfig, http } from "wagmi"
 import { base, mainnet } from "wagmi/chains"
 
-// CSS for the pulsating button
+// CSS for the pulsating glow on the connect button
 const pulsateCSS = `
-@keyframes pulsate {
-  0% {
-    box-shadow: 0 0 0 0 rgba(74, 126, 155, 0.5);
-  }
-  70% {
-    box-shadow: 0 0 0 10px rgba(74, 126, 155, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(74, 126, 155, 0);
-  }
+@keyframes wc-pulsate {
+  0%   { box-shadow: 0 0 0 0 hsl(114 53% 74% / 0.45); }
+  70%  { box-shadow: 0 0 0 14px hsl(114 53% 74% / 0); }
+  100% { box-shadow: 0 0 0 0 hsl(114 53% 74% / 0); }
 }
 
-.button-pulsate {
-  animation: pulsate 1.5s infinite;
-  border-radius: 0.5rem;
+.wc-connect-btn {
+  animation: wc-pulsate 2.2s infinite;
+  border-radius: 0.75rem;
   position: relative;
 }
 `;
@@ -267,16 +261,20 @@ export function WalletConnectionModal() {
       <style>{pulsateCSS}</style>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogTrigger asChild>
-          <Button className={cn("w-full button-pulsate bg-black/5 dark:bg-white/5")}>
-            <Wallet className="mr-2 h-4 w-4" />
-            Connect Wallet
+          <Button
+            className={cn(
+              "wc-connect-btn group h-12 w-full justify-center gap-2 rounded-xl border border-mint/40 bg-mint/10 font-mono text-[13px] uppercase tracking-[0.18em] text-mint hover:bg-mint/20 hover:text-mint",
+            )}
+          >
+            <Wallet className="h-4 w-4" />
+            connect wallet
           </Button>
         </DialogTrigger>
-        <DialogContent className="max-w-[95%] w-full sm:max-w-md p-4 sm:p-6">
+        <DialogContent className="max-w-[95%] w-full sm:max-w-md p-4 sm:p-6 border-border bg-surface-1">
           <DialogHeader className="pb-2">
-            <DialogTitle className="text-lg sm:text-xl">Connect Wallet</DialogTitle>
-            <DialogDescription>
-              Choose a wallet to connect to this application
+            <DialogTitle className="font-display text-xl tracking-tight">Connect a wallet</DialogTitle>
+            <DialogDescription className="font-mono text-xs uppercase tracking-[0.14em] text-muted-foreground">
+              choose · provider
             </DialogDescription>
           </DialogHeader>
           

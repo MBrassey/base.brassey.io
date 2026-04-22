@@ -1,9 +1,10 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { useAccount } from "wagmi"
 import type { OwnedNft } from "alchemy-sdk"
 import { useMemo } from "react"
+import { isSpamNft } from "@/lib/spam"
+import { useAuth } from "@/context/auth-context"
 
 // Extended NFT type with additional fields from our API
 export interface ExtendedNft extends OwnedNft {
@@ -24,6 +25,8 @@ export interface ExtendedNft extends OwnedNft {
   }
   title?: string
   isBasename?: boolean
+  isSpam?: boolean
+  spamClassifications?: string[]
 }
 
 // Response type
@@ -40,7 +43,9 @@ const BASENAME_CONTRACT_ADDRESSES = [
 
 // Custom hook to fetch NFTs
 export function useNFTs() {
-  const { address } = useAccount()
+  // Use the persisted auth-context address so the query fires on first
+  // render without waiting for wagmi to rehydrate.
+  const { address } = useAuth()
 
   const query = useQuery({
     queryKey: ["nfts", address],
@@ -153,6 +158,7 @@ export function useNFTs() {
         return {
           ...nft,
           isBasename,
+          isSpam: false,
           name: basename || nft.name,
           title: basename || nft.title,
           description: nft.description || nft.raw?.metadata?.description || "Base Name Service",
@@ -174,7 +180,8 @@ export function useNFTs() {
       
       return {
         ...nft,
-        isBasename
+        isBasename,
+        isSpam: isSpamNft(nft),
       };
     });
     

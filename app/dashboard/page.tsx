@@ -21,25 +21,22 @@ export default function DashboardPage() {
     setIsMounted(true)
   }, [])
 
-  // Redirect to login if not authenticated
+  // Wait for auth to initialize before making routing decisions
   useEffect(() => {
-    if (!isMounted) return
+    if (!isMounted || !isInitialized) return
 
-    if (!isAuthenticated && !isConnected && isInitialized) {
+    if (!isAuthenticated && !isConnected) {
       router.push("/")
-    } else {
-      // Simulate loading state for better UX
-      const timeout = setTimeout(() => {
-        setIsLoading(false)
-      }, 2000)
-
-      return () => clearTimeout(timeout)
+      return
     }
+
+    const timeout = setTimeout(() => setIsLoading(false), 400)
+    return () => clearTimeout(timeout)
   }, [isAuthenticated, isConnected, router, isMounted, isInitialized])
 
-  // Show loading overlay while checking authentication
-  if (!isMounted || (!isAuthenticated && !isConnected) || isLoading) {
-    return <LoadingOverlay isLoading={true} text="Checking authentication..." />
+  // Show loading overlay while auth is still being determined
+  if (!isMounted || !isInitialized || (!isAuthenticated && !isConnected) || isLoading) {
+    return <LoadingOverlay isLoading={true} text="Connecting to Base…" />
   }
 
   return (

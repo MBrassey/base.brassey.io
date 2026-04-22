@@ -57,8 +57,7 @@ export async function GET(request: Request) {
   try {
     console.log(`Fetching NFTs for address: ${address}`)
     
-    // Use direct fetch instead of Alchemy SDK to avoid potential issues
-    // Add withMetadata=true parameter to include complete metadata
+    // Stick with the legacy v2 endpoint; it's what's been working for this app.
     const url = `https://base-mainnet.g.alchemy.com/v2/${alchemyApiKey}/getNFTs/?owner=${address}&withMetadata=true`
     
     // Add a timeout to the fetch call using AbortController
@@ -84,7 +83,7 @@ export async function GET(request: Request) {
       
       const data = await response.json()
       console.log(`Successfully fetched ${data.ownedNfts?.length || 0} NFTs`)
-      
+
       // Process NFTs to ensure media and metadata are present
       const processedNfts = await Promise.all(data.ownedNfts?.map(async (nft: Nft) => {
         // Make sure media URLs are absolute

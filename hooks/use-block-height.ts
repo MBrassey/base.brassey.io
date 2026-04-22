@@ -29,7 +29,13 @@ export function useBlockHeight() {
         clearTimeout(timeoutId)
       }
     },
-    refetchInterval: 30000, // Refetch every 30 seconds
-    retry: 3,
+    // Poll the block number quietly in the background every 60s. React
+    // Query swaps data in place without re-entering the loading state, so
+    // this does NOT cause the dashboard to flash.
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    staleTime: 60_000,
+    retry: 1,
   })
 } 

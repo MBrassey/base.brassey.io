@@ -1,7 +1,8 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { useAccount } from "wagmi"
+import { useAuth } from "@/context/auth-context"
+import { isSpamToken } from "@/lib/spam"
 
 // Token interface
 export interface TokenData {
@@ -11,17 +12,19 @@ export interface TokenData {
   symbol: string
   logo: string | null
   decimals: number
+  isSpam?: boolean
 }
 
 export function useTokens() {
-  const { address } = useAccount()
+  // Read from the auth context (persisted in localStorage) rather than
+  // wagmi's useAccount() — wagmi may not be hydrated yet on a fresh page
+  // load, which stranded this query in a permanent loading state.
+  const { address } = useAuth()
 
   return useQuery({
     queryKey: ["tokens", address],
-    queryFn: async () => {
-      if (!address) {
-        return { tokens: [] }
-      }
+    queryFn: async (): Promise<{ tokens: TokenData[] }> => {
+      if (!address) return { tokens: [] }
 
       const response = await fetch(`/api/tokens?address=${address}`, {
         cache: "no-store",
@@ -31,24 +34,24 @@ export function useTokens() {
         throw new Error(`HTTP error! Status: ${response.status}`)
       }
 
-      return response.json()
+      const data = (await response.json()) as { tokens: TokenData[] }
+      return {
+        tokens: (data.tokens ?? []).map((t) => {
+          try {
+            return { ...t, isSpam: isSpamToken(t) }
+          } catch {
+            return { ...t, isSpam: false }
+          }
+        }),
+      }
     },
-    // Enable the query only when we have an address
     enabled: !!address,
-    // Keep data fresh for 30 seconds
-    staleTime: 30 * 1000,
-    // Cache data for 5 minutes
-    gcTime: 5 * 60 * 1000,
-    // Always refetch on mount
-    refetchOnMount: 'always',
-    // Refetch when coming back to the app
-    refetchOnWindowFocus: true,
-    // Add retry options
-    retry: 5,
-    retryDelay: (attemptIndex) => Math.min(1000 * (1.5 ** attemptIndex), 30000),
-    // Add refetch interval
-    refetchInterval: 30000,
-    // Keep refetching in background
-    refetchIntervalInBackground: true,
+    staleTime: 5 * 60_000,          // data considered fresh for 5 min
+    gcTime: 30 * 60_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchInterval: false,         // no visible "flashing refresh" loop
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 1.5 ** attemptIndex, 6000),
   })
-} 
+}
